@@ -3,13 +3,15 @@ import java.util.HashMap;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-public class tezdag {
+public class Dag {
 
 	public enum EVENT_TYPES {
 		DAG_FINISHED("DAG_FINISHED"), DAG_INITIALIZED("DAG_INITIALIZED"), DAG_STARTED("DAG_STARTED"), DAG_SUBMITTED(
 						"DAG_SUBMITTED"),
 		VERTEX_FINISHED("VERTEX_FINISHED"), VERTEX_INITIALIZED("VERTEX_INITIALIZED"),
-		VERTEX_STARTED("VERTEX_STARTED");
+		VERTEX_STARTED("VERTEX_STARTED"),
+		TASK_STARTED("TASK_STARTED"), TASK_ATTEMPT_STARTED("TASK_ATTEMPT_STARTED"),
+		TASK_FINISHED("TASK_FINISHED");
 
 		private final String text;
 
@@ -32,76 +34,58 @@ public class tezdag {
 	}
 
 	private static final String counterGroupName = "counterGroupName";
-	
+	private static final String relatedEntities = "relatedEntities";
 	private static final String counterName = "counterName";
-	
 	private static final String counters = "counters";
-
 	private static final String counterValue = "counterValue";
 	private static final String dagCounters = "org.apache.tez.common.counters.DAGCounter";
-
 	private static final String dagName = "dagName";
-
 	private static final String dagPlan = "dagPlan";
-	
 	private static final String diagnostics = "diagnostics";
-
 	private static final String edges = "edges";
-
 	private static final String endTime = "endTime";
-
 	private static final String entity = "entity";
-	
 	private static final String events = "events";
-	
 	private static final String eventtype = "eventtype";
-	
 	private static final String fileSystemCounter = "org.apache.tez.common.counters.FileSystemCounter";
-
 	private static final String hivecounter = "HIVE";
-
 	private static final String otherinfo = "otherinfo";
-
 	private static final String startTime = "startTime";
-
 	private static final String status = "status";
-
 	private static final String taskCounter = "org.apache.tez.common.counters.TaskCounter";
-
 	private static final String timeTaken = "timeTaken";
-
 	private static final String ts = "ts";
-
 	private static final String vertexName = "vertexName";
-
 	private static final String vertices = "vertices";
 
-	HashMap<String, String> dagCountersHashMap;
-	String dagDiagnostics;
 	long dagEndTime;
+	boolean dagParsingComplete;
+	long dagStartTime;
+	int dagTimeTaken;
+
+	String dagDiagnostics;
 	String dagEntity;
 	String dagFinishedTime;
 	String dagInitializedTime;
-
-	boolean dagParsingComplete;
 	String dagStartedTime;
-	long dagStartTime;
 	String dagStatus;
 	String dagSubmittedTime;
-	int dagTimeTaken;
+	String m_dagName;
 
+	HashMap<String, String> dagCountersHashMap;
 	HashMap<String, Edge> edgesHashMap;
 	HashMap<String, String> fileSystemCountersHashMap;
 	HashMap<String, String> hiveCountersHashMap;
 	HashMap<String, HashMap<String, String>> hiveVertexCountersHashMap;
-	String m_dagName;
 	HashMap<String, String> taskCountersHashMap;
 	HashMap<String, Vertex> verticesHashMap;
+	HashMap<String, Task> taskIdObjectMap;
 	
-	public tezdag() {
+	public Dag() {
 		super();
 		edgesHashMap = new HashMap<String, Edge>();
 		verticesHashMap = new HashMap<String, Vertex>();
+		taskIdObjectMap = new HashMap<String, Task>();
 		dagCountersHashMap = new HashMap<String, String>();
 		fileSystemCountersHashMap = new HashMap<String, String>();
 		taskCountersHashMap = new HashMap<String, String>();
@@ -124,7 +108,7 @@ public class tezdag {
 	}
 	public String getDagSummaryHeader()
 	{
-		String header = "entity,dagInitializedTime,StartedTime,SubmittedTime,FinishedTime,Name,Diagnostics,EndTime,StartTime,Status,TimeTaken";
+		String header = "DageId,DagInitializedTime,StartedTime,SubmittedTime,FinishedTime,Name,Diagnostics,EndTime,StartTime,Status,TimeTaken";
 		
 		for ( String key : dagCountersHashMap.keySet() )
 		{
@@ -186,6 +170,21 @@ public class tezdag {
 			System.out.println(currentVertex.getVertexValues());
 		}
 	}
+
+	public void PrintTaskSummary()
+	{
+		
+		for (String currentVertexName : verticesHashMap.keySet())
+		{
+			Vertex currentVertex = verticesHashMap.get(currentVertexName);
+			
+			for (Task currentTask : currentVertex.GetTaskList())
+			{
+				System.out.println(currentTask.getTaskValues());
+			}
+		}
+	}
+
 	
 	public String getEntity() {
 		return dagEntity;
@@ -238,9 +237,35 @@ public class tezdag {
 	public boolean handleSubmitted() {
 		return ((dagSubmittedTime != null) && (dagFinishedTime == null));
 	}
+	
+	public void HandleTaskEvents(JSONObject jo) {
+		
+		String currentEvent =  jo.getJSONArray(events).getJSONObject(0).get(eventtype).toString();
+		
+		if (currentEvent.equals(EVENT_TYPES.TASK_STARTED.toString())) {
+			String currentVertexName = jo.getJSONArray(relatedEntities).getJSONObject(0).get(entity).toString();
+			Vertex parentVertex = GetVertexByEntity(currentVertexName);
+			Task currentTask = new Task(parentVertex, jo);
+			parentVertex.AddTasktoTaskList(currentTask);
+			taskIdObjectMap.put(currentTask.getTaskId(), currentTask);
+		}
+
+		if (currentEvent.equals(EVENT_TYPES.TASK_ATTEMPT_STARTED.toString())) {
+			// Logs are not structured so need to lookup the actual task for the given task ID
+			String currentTaskId = jo.getJSONArray(relatedEntities).getJSONObject(2).get(entity).toString();
+			Task currentTask = taskIdObjectMap.get(currentTaskId);
+			currentTask.HandleAttemptEvent(jo);
+		}
+
+		if (currentEvent.equals(EVENT_TYPES.TASK_FINISHED.toString())) {
+			String currentTaskId = jo.get("entity").toString();
+			Task currentTask = taskIdObjectMap.get(currentTaskId);
+			currentTask.HandleFinishedEvent(jo);
+		}
+	}
+	
 	public void HandleVertexEvents(JSONObject jo) { 
-		
-		
+
 		String currentEvent =  jo.getJSONArray(events).getJSONObject(0).get(eventtype).toString();
 		String currentVertexEntity = jo.get(entity).toString();
 		
@@ -256,7 +281,6 @@ public class tezdag {
 		}
 
 		if (currentEvent.equals(EVENT_TYPES.VERTEX_FINISHED.toString())) {
-			//dagSubmittedTime = ja.getJSONObject(0).get(ts).toString();
 			Vertex currentVertex = GetVertexByEntity(currentVertexEntity);
 			currentVertex.HandleFinishedEvent(jo);
 		}
@@ -346,7 +370,6 @@ public class tezdag {
 				
 				default:
 				{
-					System.out.println(currentGroupName);
 					HashMap<String, String> taskCountersMap = new HashMap<String, String>();
 					parseKeyValuePairs(countersArray, taskCountersMap);
 					hiveVertexCountersHashMap.put(currentGroupName, taskCountersMap);
@@ -369,7 +392,6 @@ public class tezdag {
 					.getJSONArray(vertices).getJSONObject(i));
 			
 			verticesHashMap.put(currentVertex.getVertexName(), currentVertex);
-			System.out.println(currentVertex.toString());
 		}
 
 
@@ -384,8 +406,6 @@ public class tezdag {
 			
 			currentEdge.setOutputVertex(verticesHashMap.get(currentEdge
 					.getOutputVertex()));
-			
-			System.out.println(currentEdge.toString());
 		}
 		
 		// Now set the edges in the vertices

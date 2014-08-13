@@ -11,46 +11,46 @@ import org.json.JSONObject;
 
 public class ApplicationLogsParser {
 
-	public ApplicationLogsParser() {
-		super();
-		this.dagList = new ArrayList<tezdag>();
-	}
+	private static final String  entity = "entity";
 
-	private static final String TEZ_DAG_ID = "TEZ_DAG_ID";						// Done
-	private static final String TEZ_VERTEX_ID = "TEZ_VERTEX_ID";
 	private static final String entitytype = "entitytype";
 	private static final String events = "events";
 	private static final String otherinfo = "otherinfo";
-	private static final String  entity = "entity";
-	private List<tezdag> dagList;
-	private tezdag currentDag = null;
+	private static final String TEZ_DAG_ID = "TEZ_DAG_ID";						// Done without record counts
+	private static final String TEZ_VERTEX_ID = "TEZ_VERTEX_ID";				// Done without record counts
+	private static final String TEZ_TASK_ID = "TEZ_TASK_ID";					// Done without record counts
+	private static final String TEZ_TASK_ATTEMPT_ID = "TEZ_TASK_ATTEMPT_ID";
+	public static void main(String[] args) throws JSONException, Exception {
+		// TODO Auto-generated method stub
+
+		String applogFilePath = "//Users//mmokhtar//Downloads//schedulingissues//history.txt.appattempt_1406587903854_0285_000001";
+		//applogFilePath = "//Users//mmokhtar//Downloads//schedulingissues//q17200g";
+		File applogFile = new File(applogFilePath);
+		ApplicationLogsParser logParser = new ApplicationLogsParser();
+
+		logParser.readApplicationLogFile(applogFile);
+		
+		logParser.PrintSummary();
+
+	}
+	private Dag currentDag = null;
+	private List<Dag> dagList;
 	
-	public void handleTezVertex (JSONObject dagJson) throws JSONException, Exception
-	{
-		if (currentDag== null)
-		{
-			throw new Exception("We are trying to parse a Vertex without a dag" + dagJson.toString());	
-		}
-		
-		if (!dagJson.getString(entitytype).equals(TEZ_VERTEX_ID))
-		{
-			 throw new Exception("Check the dag provided to  handleTezVertex : " + dagJson.getString(entitytype) + " "+ dagJson.toString());
-		}
-		
-		// The JSON has a flat structured, so this work is needed :( 
-		currentDag.HandleVertexEvents(dagJson);
+	public ApplicationLogsParser() {
+		super();
+		this.dagList = new ArrayList<Dag>();
 	}
 	
-	public void handleTezDag (JSONObject dagJson) throws JSONException, Exception
+	public void HandleDag (JSONObject dagJson) throws JSONException, Exception
 	{
 		if (currentDag== null)
 		{
-			currentDag = new tezdag();
+			currentDag = new Dag();
 		}
 			
 		if (!dagJson.getString(entitytype).equals(TEZ_DAG_ID))
 		{
-			 throw new Exception("Check the dag provided to  handleTezDag : " + dagJson.getString(entitytype) + " "+ dagJson.toString());
+			 throw new Exception("Check the dag provided to  HandleDag : " + dagJson.getString(entitytype) + " "+ dagJson.toString());
 		}
 		
 		for (String key : dagJson.keySet()) {
@@ -77,7 +77,6 @@ public class ApplicationLogsParser {
 					 currentDag.setOtherInfo(dagJson.getJSONObject(otherinfo));
 				 }
 			 }
-			
 		}
 		
 		// If we are done with this dag save it off to the list and start a new one.
@@ -85,20 +84,67 @@ public class ApplicationLogsParser {
 		if (currentDag.isDagParsingComplete())
 		{
 			dagList.add(currentDag);
-			currentDag = new tezdag();
+			currentDag = new Dag();
 		}
 	}
 
-	private long readApplicationLogFile(File appLogFile)
+	public void HandleVertex (JSONObject dagJson) throws JSONException, Exception
+	{
+		if (currentDag== null)
+		{
+			throw new Exception("We are trying to parse a Vertex without a dag" + dagJson.toString());	
+		}
+		
+		if (!dagJson.getString(entitytype).equals(TEZ_VERTEX_ID))
+		{
+			 throw new Exception("Check the dag provided to  HandleVertex : " + dagJson.getString(entitytype) + " "+ dagJson.toString());
+		}
+		
+		// The JSON has a flat structured, so this work is needed :( 
+		currentDag.HandleVertexEvents(dagJson);
+	}
+	
+	public void HandleTask (JSONObject dagJson) throws JSONException, Exception
+	{
+		if (currentDag== null)
+		{
+			throw new Exception("We are trying to parse a Vertex without a dag" + dagJson.toString());	
+		}
+		
+		if (!((dagJson.getString(entitytype).equals(TEZ_TASK_ID)) || (dagJson.getString(entitytype).equals(TEZ_TASK_ATTEMPT_ID))))
+		{
+			 throw new Exception("Check the dag provided to  HandleTask : " + dagJson.getString(entitytype) + " "+ dagJson.toString());
+		}
+		
+		// The JSON has a flat structured, so this work is needed :( 
+		currentDag.HandleTaskEvents(dagJson);
+	}
+	
+	public void PrintSummary()
+	{
+
+		
+		for (Dag td : dagList)
+		{
+			System.out.println(dagList.get(0).getDagSummaryHeader());
+			System.out.println(td.getDagSummaryValues());	
+			
+			System.out.println("\n" + Vertex.getVertexSummaryHeader());
+			td.PrintVertexSummary();
+
+			System.out.println("\n" + Task.getTaskSummaryHeader());
+			td.PrintTaskSummary();
+			System.out.println("\n");
+		}		
+	}
+
+	private void readApplicationLogFile(File appLogFile)
 			throws JSONException, Exception {
-		long timeStamp = 0;
 		try {
 
 			BufferedReader br = new BufferedReader(new FileReader(
 					appLogFile.getPath()));
 			String jsonLogLine = null;
-
-			int rowNum = 0;
 
 			while ((jsonLogLine = br.readLine()) != null) {
 				jsonLogLine = jsonLogLine.replaceAll("\\p{Cc}", "").replaceAll("[\u0000-\u001f]","");
@@ -111,51 +157,25 @@ public class ApplicationLogsParser {
 					// Parse the DAG info
 					if (entityName.equals(TEZ_DAG_ID)) {
 						
-						handleTezDag(obj);
+						HandleDag(obj);
 					}
 					
 					// Parse the DAG info
 					if (entityName.equals(TEZ_VERTEX_ID)) {
 						
-						handleTezVertex(obj);
+						HandleVertex(obj);
+					}
+					
+					if (entityName.equals(TEZ_TASK_ID) || entityName.equals(TEZ_TASK_ATTEMPT_ID) ) {
+						HandleTask(obj);
 					}
 				}
-
-				rowNum++;
 			}
-			
-			System.out.println(dagList.get(0).getDagSummaryHeader());
-			
-			for (tezdag td : dagList)
-			{
-				System.out.println(td.getDagSummaryValues());	
-			}
-			
-			System.out.println(Vertex.getVertexSummaryHeader());
-			
-			for (tezdag td : dagList)
-			{
-				td.PrintVertexSummary();
-			}
-
-			
 			
 			br.close();
 		} catch (FileNotFoundException ex) {
 
 		}
-
-		return timeStamp;
-	}
-
-	public static void main(String[] args) throws JSONException, Exception {
-		// TODO Auto-generated method stub
-
-		String applogFilePath = "//Users//mmokhtar//Downloads//schedulingissues//history.txt.appattempt_1406587903854_0285_000002";
-		File applogFile = new File(applogFilePath);
-		ApplicationLogsParser logParser = new ApplicationLogsParser();
-		logParser.readApplicationLogFile(applogFile);
-
 	}
 
 }

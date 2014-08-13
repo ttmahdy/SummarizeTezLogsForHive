@@ -53,12 +53,12 @@ public class Vertex {
 		String className;
 		String name;
 		
-		public String getName() {
-			return name;
-		}
 		public AdditionalOutputs(JSONObject jo) {
 			this.className = jo.getString("class");
 			this.name = jo.getString("name");
+		}
+		public String getName() {
+			return name;
 		}
 		@Override
 		public String toString() {
@@ -91,73 +91,41 @@ public class Vertex {
 		}
 	}
 
-
 	private static final String counterGroupName = "counterGroupName";
-	
 	private static final String counterName = "counterName";
-
 	private static final String counters = "counters";
-	
 	private static final String counterValue = "counterValue";
-
 	private static final String dagCounters = "org.apache.tez.common.counters.DAGCounter";
-	
 	private static final String entity = "entity";
-	private static final String events = "events";
-	private static final String eventtype = "eventtype";
 	private static final String fileSystemCounter = "org.apache.tez.common.counters.FileSystemCounter";
-	private static final String hivecounter = "HIVE";
 	private static final String otherinfo = "otherinfo";
-
 	private static final String taskCounter = "org.apache.tez.common.counters.TaskCounter";
-	HashMap<String, String> dagCountersHashMap;
-	
-	HashMap<String, String> fileSystemCountersHashMap;
 
-	List<String> vertexInEdgeIds;
+	boolean vertexParsingComplete;
+	int vertexTimeTaken;
 
-	public List<String> getInEdgeIds() {
-		return vertexInEdgeIds;
-	}
-
-	public String getOutEdgeId() {
-		return vertexOutEdgeId;
-	}
-	
-	public void AddEdgetoInputList(Edge edgeToAdd) {
-		vertexInputEdges.add(edgeToAdd);
-	}
-	
-	public void SetVertexOutEdge (Edge edgeToAdd) {
-		this.vertexOutEdge = edgeToAdd;
-	}
-
-	
-	List<Edge>  vertexInputEdges;
 	AdditionalInputs vertexAdditionalInputs;
 	AdditionalOutputs vertexAdditionalOutputs;
 	
-	tezdag vertexParentDag;
+	HashMap<String, String> dagCountersHashMap;
+	HashMap<String, String> fileSystemCountersHashMap;
 	HashMap<String, String> taskCountersHashMap;
 	HashMap<String, String> vertexCounters;
 	HashMap<String, HashMap<String, String>> vertexCountersHashMap;
-	String vertexDiagnostics;
-		
 	long vertexEndTime;
-	
-	String vertexEntity;
-	
-	String vertexName;
-	
-	String vertexOutEdgeId;
-	
-	Edge vertexOutEdge;
 
-	boolean vertexParsingComplete;
-	
+	String vertexDiagnostics;
+	String vertexEntity;
+	String vertexName;
+	String vertexOutEdgeId;
 	String vertexProcessorClass;
 	String vertexStatus;
-	int vertexTimeTaken;
+	List<String> vertexInEdgeIds;
+	List<Edge>  vertexInputEdges;
+	List<Task> vertexTasks;
+	Edge vertexOutEdge;
+	Dag vertexParentDag;
+	
 	public Vertex(JSONObject jsonObject) {
 
 		this.vertexName = jsonObject.getString("vertexName");
@@ -171,6 +139,7 @@ public class Vertex {
 		this.vertexParsingComplete = false;
 		this.vertexInputEdges = new ArrayList<>();
 		this.vertexInEdgeIds = new ArrayList<>();
+		this.vertexTasks = new ArrayList<>();
 		
 		if (jsonObject.has("outEdgeIds"))
 		{
@@ -185,22 +154,56 @@ public class Vertex {
 		{
 			String bla = jsonObject.get("inEdgeIds").toString();
 			vertexInEdgeIds = Arrays.asList(bla.replace("[", "").replace("]", "").replace("\"", "").split(","));
-			System.out.println(vertexInEdgeIds);
 		}
-		
 		
 		if ( jsonObject.has("additionalOutputs"))
 		{
-			this.vertexAdditionalOutputs = new AdditionalOutputs(jsonObject.getJSONArray("additionalOutputs").getJSONObject(0));
+			String objectType = jsonObject.get("additionalOutputs").getClass().getName();
+			
+			if (objectType.equals("org.json.JSONObject"))
+			{
+				this.vertexAdditionalOutputs = new AdditionalOutputs(jsonObject.getJSONObject("additionalOutputs"));
+			}
+			else
+			{
+				this.vertexAdditionalOutputs = new AdditionalOutputs(jsonObject.getJSONArray("additionalOutputs").getJSONObject(0));
+			}
 		}	
 		
 		if ( jsonObject.has("additionalInputs"))
 		{
-			this.vertexAdditionalInputs = new AdditionalInputs(jsonObject.getJSONArray("additionalInputs").getJSONObject(0));
+			String objectType = jsonObject.get("additionalInputs").getClass().getName();
+			if (objectType.equals("org.json.JSONObject"))
+			{
+				this.vertexAdditionalInputs = new AdditionalInputs(jsonObject.getJSONObject("additionalInputs"));
+			}
+			else
+			{
+				this.vertexAdditionalInputs = new AdditionalInputs(jsonObject.getJSONArray("additionalInputs").getJSONObject(0));
+			}
+
 		}
+	}
+
+	public void AddTasktoTaskList(Task taskToAdd) {
+		vertexTasks.add(taskToAdd);
+	}
+	
+	public List<Task> GetTaskList() {
+		return vertexTasks;
+	}
+	
+	public void AddEdgetoInputList(Edge edgeToAdd) {
+		vertexInputEdges.add(edgeToAdd);
+	}
+	public List<String> getInEdgeIds() {
+		return vertexInEdgeIds;
 	}
 	public AdditionalInputs getInputs() {
 		return vertexAdditionalInputs;
+	}
+	public String getOutEdgeId() {
+		return vertexOutEdgeId;
 	}
 	public String getVertexEntity() {
 		return vertexEntity;
@@ -209,9 +212,13 @@ public class Vertex {
 		return vertexName;
 	}
 	
+	public String getParentDagId() {
+		return vertexParentDag.getEntity();
+	}
+	
 	public static String getVertexSummaryHeader()
 	{
-		String header = "parentDag,vertexName,inputs,destination,dataMovementType,additionalInputs,additionalOutputs,initRequestedTime,initTime,processorClassName,startRequestedTime,startTime,endTime,timeTaken,status,DATA_LOCAL_TASKS,RACK_LOCAL_TASKS,FILE_BYTES_READ,FILE_BYTES_WRITTEN,FILE_READ_OPS,FILE_LARGE_READ_OPS,FILE_WRITE_OPS,HDFS_BYTES_READ,HDFS_BYTES_WRITTEN,HDFS_READ_OPS,HDFS_LARGE_READ_OPS,HDFS_WRITE_OPS,GC_TIME_MILLIS,CPU_MILLISECONDS,PHYSICAL_MEMORY_BYTES,VIRTUAL_MEMORY_BYTES,COMMITTED_HEAP_BYTES";
+		String header = "ParentDagId,VertexName,Inputs,Destination,DataMovementType,AdditionalInputs,AdditionalOutputs,InitRequestedTime,InitTime,ProcessorClassName,StartRequestedTime,StartTime,EndTime,TimeTaken,Status,DataLocalTask,RackLocalTasks,FileBytesRead,FileBytesWritten,FileReadOps,FileLargeReadOps,FileWriteOps,HDFSBytesRead,HDFSBytesWritten,HDFSReadOps,HDFSLargeReadOps,HDFSWriteOps,GcTimeMs,CpuMs,PhysicalMemoryBytes,VirtualMemoryBytes,CommittedHeapBytes";
 		return header;
 	}
 	
@@ -235,7 +242,8 @@ public class Vertex {
 				+  vertexAdditionalInputName +","+ vertexAdditionalOutputName + "," + vertexCounters.get("initRequestedTime") + "," 
 				+ vertexCounters.get("initTime") + "," + vertexCounters.get("processorClassName")  + ","
 				+ vertexCounters.get("startRequestedTime") + "," + vertexCounters.get("startTime") + "," 
-				+ vertexEndTime + "," + vertexTimeTaken  + "," + vertexStatus + "," + dagCountersHashMap.get("DATA_LOCAL_TASKS") 
+				+ vertexEndTime + "," + vertexTimeTaken  + "," + vertexStatus 
+				+ "," + dagCountersHashMap.get("DATA_LOCAL_TASKS") 
 				+ "," + dagCountersHashMap.get("RACK_LOCAL_TASKS") + "," + fileSystemCountersHashMap.get("FILE_BYTES_READ") 
 				+ "," + fileSystemCountersHashMap.get("FILE_BYTES_WRITTEN") + "," + fileSystemCountersHashMap.get("FILE_READ_OPS") 
 				+ "," + fileSystemCountersHashMap.get("FILE_LARGE_READ_OPS") + "," + fileSystemCountersHashMap.get("FILE_WRITE_OPS") 
@@ -246,6 +254,24 @@ public class Vertex {
 				+ "," + taskCountersHashMap.get("PHYSICAL_MEMORY_BYTES") + "," + taskCountersHashMap.get("VIRTUAL_MEMORY_BYTES")
 				+ "," + taskCountersHashMap.get("COMMITTED_HEAP_BYTES");
 		
+				// This doesn't work due to inconsistency in the log lines printed 
+				/*
+				for ( String value : dagCountersHashMap.values() )
+				{
+					values +="," + value;
+				}
+				
+				for ( String value : fileSystemCountersHashMap.values() )
+				{
+					values +="," + value ;
+				}
+		
+				for ( String value : taskCountersHashMap.values() )
+				{
+					values +="," + value ;
+				}
+				*/
+			
 		return values;
 	}
 	
@@ -257,6 +283,11 @@ public class Vertex {
 		vertexEndTime 		= otherInfoJson.getLong("endTime");
 		vertexStatus 		= otherInfoJson.getString("status");
 		vertexDiagnostics  	= otherInfoJson.getString("diagnostics"); 
+		
+		if (vertexStatus.equalsIgnoreCase("KILLED"))
+		{
+			return;
+		}
 		
 		JSONArray ja = otherInfoJson.getJSONObject("counters").getJSONArray("counterGroups");
 		
@@ -291,7 +322,6 @@ public class Vertex {
 				
 				default:
 				{
-					System.out.println(currentGroupName);
 					HashMap<String, String> taskCountersMap = new HashMap<String, String>();
 					parseKeyValuePairs(countersArray, taskCountersMap);
 					vertexCountersHashMap.put(currentGroupName, taskCountersMap);
@@ -302,8 +332,8 @@ public class Vertex {
 		
 		vertexParsingComplete = true;
 	}
-	public void HandleInitializedEvent(JSONObject jsonObject, tezdag parentDag) {
-		
+	
+	public void HandleInitializedEvent(JSONObject jsonObject, Dag parentDag) {
 		this.vertexEntity = jsonObject.get(entity).toString();
 		this.vertexParentDag = parentDag;
 		JSONObject otherInfoJSON = jsonObject.getJSONObject(otherinfo);
@@ -311,10 +341,11 @@ public class Vertex {
 			vertexCounters.put(key,otherInfoJSON.get(key).toString());
 		}
 	}
-	public void HandleStartedEvent(JSONObject jsonObject,tezdag parentDag) {
+	public void HandleStartedEvent(JSONObject jsonObject,Dag parentDag) {
 		// For now there is only the otherinfo node so use as is
 		this.HandleInitializedEvent(jsonObject, parentDag);
 	}
+
 	public void parseKeyValuePairs(JSONArray ja, HashMap<String, String> hashmap )
 	{
 		 for (int j = 0 ; j < ja.length(); j++)
@@ -322,6 +353,10 @@ public class Vertex {
 			 hashmap.put(ja.getJSONObject(j).getString(counterName), 
 					 ja.getJSONObject(j).get(counterValue).toString());
 		 }
+	}
+	
+	public void SetVertexOutEdge (Edge edgeToAdd) {
+		this.vertexOutEdge = edgeToAdd;
 	}
 	@Override
 	public String toString() {
