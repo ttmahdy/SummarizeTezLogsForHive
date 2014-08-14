@@ -1,4 +1,6 @@
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -6,12 +8,11 @@ import org.json.JSONObject;
 public class Dag {
 
 	public enum EVENT_TYPES {
-		DAG_FINISHED("DAG_FINISHED"), DAG_INITIALIZED("DAG_INITIALIZED"), DAG_STARTED("DAG_STARTED"), DAG_SUBMITTED(
-						"DAG_SUBMITTED"),
-		VERTEX_FINISHED("VERTEX_FINISHED"), VERTEX_INITIALIZED("VERTEX_INITIALIZED"),
-		VERTEX_STARTED("VERTEX_STARTED"),
-		TASK_STARTED("TASK_STARTED"), TASK_ATTEMPT_STARTED("TASK_ATTEMPT_STARTED"),
-		TASK_FINISHED("TASK_FINISHED");
+		DAG_FINISHED("DAG_FINISHED"), DAG_INITIALIZED("DAG_INITIALIZED"), DAG_STARTED(
+				"DAG_STARTED"), DAG_SUBMITTED("DAG_SUBMITTED"), TASK_ATTEMPT_STARTED(
+				"TASK_ATTEMPT_STARTED"), TASK_FINISHED("TASK_FINISHED"), TASK_STARTED("TASK_STARTED"), VERTEX_FINISHED(
+				"VERTEX_FINISHED"), VERTEX_INITIALIZED("VERTEX_INITIALIZED"), VERTEX_STARTED(
+				"VERTEX_STARTED");
 
 		private final String text;
 
@@ -33,11 +34,9 @@ public class Dag {
 		}
 	}
 
+	private static final String applicationId = "applicationId";
 	private static final String counterGroupName = "counterGroupName";
-	private static final String relatedEntities = "relatedEntities";
-	private static final String counterName = "counterName";
 	private static final String counters = "counters";
-	private static final String counterValue = "counterValue";
 	private static final String dagCounters = "org.apache.tez.common.counters.DAGCounter";
 	private static final String dagName = "dagName";
 	private static final String dagPlan = "dagPlan";
@@ -45,11 +44,13 @@ public class Dag {
 	private static final String edges = "edges";
 	private static final String endTime = "endTime";
 	private static final String entity = "entity";
+	private static final String entitytype = "entitytype";
 	private static final String events = "events";
 	private static final String eventtype = "eventtype";
 	private static final String fileSystemCounter = "org.apache.tez.common.counters.FileSystemCounter";
 	private static final String hivecounter = "HIVE";
 	private static final String otherinfo = "otherinfo";
+	private static final String relatedEntities = "relatedEntities";
 	private static final String startTime = "startTime";
 	private static final String status = "status";
 	private static final String taskCounter = "org.apache.tez.common.counters.TaskCounter";
@@ -58,29 +59,32 @@ public class Dag {
 	private static final String vertexName = "vertexName";
 	private static final String vertices = "vertices";
 
-	long dagEndTime;
-	boolean dagParsingComplete;
-	long dagStartTime;
-	int dagTimeTaken;
-
+	HashMap<String, Long> aggregatedInfo;
+	List<String> aggregatedInfoKeys;
+	String dagApplicationId;
+	HashMap<String, String> dagCountersHashMap;
 	String dagDiagnostics;
+	
+	long dagEndTime;
 	String dagEntity;
 	String dagFinishedTime;
 	String dagInitializedTime;
+	boolean dagParsingComplete;
 	String dagStartedTime;
+	long dagStartTime;
 	String dagStatus;
-	String dagSubmittedTime;
-	String m_dagName;
 
-	HashMap<String, String> dagCountersHashMap;
+	String dagSubmittedTime;
+	int dagTimeTaken;
 	HashMap<String, Edge> edgesHashMap;
 	HashMap<String, String> fileSystemCountersHashMap;
 	HashMap<String, String> hiveCountersHashMap;
 	HashMap<String, HashMap<String, String>> hiveVertexCountersHashMap;
+	String m_dagName;
 	HashMap<String, String> taskCountersHashMap;
-	HashMap<String, Vertex> verticesHashMap;
 	HashMap<String, Task> taskIdObjectMap;
-	
+	HashMap<String, Vertex> verticesHashMap;
+
 	public Dag() {
 		super();
 		edgesHashMap = new HashMap<String, Edge>();
@@ -91,130 +95,115 @@ public class Dag {
 		taskCountersHashMap = new HashMap<String, String>();
 		hiveCountersHashMap = new HashMap<String, String>();
 		hiveVertexCountersHashMap = new HashMap<String, HashMap<String, String>>();
+		aggregatedInfo = new HashMap<String, Long>();
+		aggregatedInfoKeys = new LinkedList<String>();
 		dagParsingComplete = false;
+	}
+
+	public List<String> GetaggregatedInfoKeys() {
+		return aggregatedInfoKeys;
 	}
 
 	public String getDAG_FINISHED() {
 		return dagFinishedTime;
 	}
+
 	public String getDAG_INITIALIZED() {
 		return dagInitializedTime;
 	}
+
 	public String getDAG_STARTED() {
 		return dagStartedTime;
 	}
+
 	public String getDAG_SUBMITTED() {
 		return dagSubmittedTime;
 	}
-	public String getDagSummaryHeader()
-	{
-		String header = "DageId,DagInitializedTime,StartedTime,SubmittedTime,FinishedTime,Name,Diagnostics,EndTime,StartTime,Status,TimeTaken";
-		
-		for ( String key : dagCountersHashMap.keySet() )
-		{
-			header +="," + key;
-		}
-		
-		for ( String key : fileSystemCountersHashMap.keySet() )
-		{
-			header +="," + key;
+
+	public String getDagSummaryHeader() {
+
+		String header = "ApplicationId,DagId,DagInitializedTime,StartedTime,SubmittedTime,FinishedTime,Name,Diagnostics,EndTime,StartTime,Status,TimeTaken";
+
+		for (String key : dagCountersHashMap.keySet()) {
+			header += "," + key;
 		}
 
-		for ( String key : taskCountersHashMap.keySet() )
-		{
-			header +="," + key;
+		for (String key : fileSystemCountersHashMap.keySet()) {
+			header += "," + key;
 		}
 
-		for ( String key : hiveCountersHashMap.keySet() )
-		{
-			header +="," + key;
+		for (String key : taskCountersHashMap.keySet()) {
+			header += "," + key;
 		}
-		
+
+		for (String key : hiveCountersHashMap.keySet()) {
+			header += "," + key;
+		}
+
+		for (String key : aggregatedInfo.keySet()) {
+			header += "," + key;
+		}
+
 		return header;
 	}
-	
-	public String getDagSummaryValues()
-	{
-		String values= dagEntity + ","+ dagInitializedTime + ","+ dagStartedTime + ","+ dagSubmittedTime + ","+ dagFinishedTime + ","+ m_dagName + ","+ dagDiagnostics + ","+ dagEndTime + ","+ dagStartTime + ","+ dagStatus + ","+ dagTimeTaken;
-		
-		for ( String key : dagCountersHashMap.keySet() )
-		{
-			values +="," + dagCountersHashMap.get(key);
-		}
-		
-		for ( String key : fileSystemCountersHashMap.keySet() )
-		{
-			values +="," + fileSystemCountersHashMap.get(key);
+
+	public String getDagSummaryValues() {
+		String values = dagApplicationId + "," + dagEntity + "," + dagInitializedTime + ","
+				+ dagStartedTime + "," + dagSubmittedTime + ","
+				+ dagFinishedTime + "," + m_dagName + "," + dagDiagnostics
+				+ "," + dagEndTime + "," + dagStartTime + "," + dagStatus + ","
+				+ dagTimeTaken;
+
+		for (String key : dagCountersHashMap.keySet()) {
+			values += "," + dagCountersHashMap.get(key);
 		}
 
-		for ( String key : taskCountersHashMap.keySet() )
-		{
-			values +="," + taskCountersHashMap.get(key);
+		for (String key : fileSystemCountersHashMap.keySet()) {
+			values += "," + fileSystemCountersHashMap.get(key);
 		}
 
-		for ( String key : hiveCountersHashMap.keySet() )
-		{
-			values +="," + hiveCountersHashMap.get(key);
+		for (String key : taskCountersHashMap.keySet()) {
+			values += "," + taskCountersHashMap.get(key);
 		}
-		
+
+		for (String key : hiveCountersHashMap.keySet()) {
+			values += "," + hiveCountersHashMap.get(key);
+		}
+
+		for (Long key : aggregatedInfo.values()) {
+			values += "," + key.toString();
+		}
+
 		return values;
 	}
-	
-	public void PrintVertexSummary()
-	{
-		
-		for (String currentVertexName : verticesHashMap.keySet())
-		{
-			Vertex currentVertex = verticesHashMap.get(currentVertexName);
-			
-			System.out.println(currentVertex.getVertexValues());
-		}
-	}
 
-	public void PrintTaskSummary()
-	{
-		
-		for (String currentVertexName : verticesHashMap.keySet())
-		{
-			Vertex currentVertex = verticesHashMap.get(currentVertexName);
-			
-			for (Task currentTask : currentVertex.GetTaskList())
-			{
-				System.out.println(currentTask.getTaskValues());
-			}
-		}
-	}
-
-	
 	public String getEntity() {
 		return dagEntity;
 	}
-	public Vertex GetVertexByEntity (String entityName)
-	{
+
+	public Vertex GetVertexByEntity(String entityName) {
 		Vertex matchingVertex = null;
-		
-		for (String currentVertexName : verticesHashMap.keySet())
-		{
-			Vertex currentVertex = verticesHashMap.get(currentVertexName); 
-			String currentVertexEntity = currentVertex.getVertexEntity(); 
-			
-			if (currentVertexEntity == null)
-			{
+
+		for (String currentVertexName : verticesHashMap.keySet()) {
+			Vertex currentVertex = verticesHashMap.get(currentVertexName);
+			String currentVertexEntity = currentVertex.getVertexEntity();
+
+			if (currentVertexEntity == null) {
 				continue;
 			}
-			if (currentVertexEntity.equals(entityName))
-			{
+			if (currentVertexEntity.equals(entityName)) {
 				matchingVertex = currentVertex;
 				break;
 			}
 		}
-		
+
 		return matchingVertex;
 	}
-	public Vertex GetVertexByName (String name)
-	{
+
+	public Vertex GetVertexByName(String name) {
 		return verticesHashMap.get(name);
 	}
+
 	public void HandleDagEvents(JSONArray ja) {
 		String currentEvent = ja.getJSONObject(0).getString(eventtype);
 
@@ -234,16 +223,19 @@ public class Dag {
 			dagFinishedTime = ja.getJSONObject(0).get(ts).toString();
 		}
 	}
+
 	public boolean handleSubmitted() {
 		return ((dagSubmittedTime != null) && (dagFinishedTime == null));
 	}
-	
+
 	public void HandleTaskEvents(JSONObject jo) {
-		
-		String currentEvent =  jo.getJSONArray(events).getJSONObject(0).get(eventtype).toString();
-		
+
+		String currentEvent = jo.getJSONArray(events).getJSONObject(0)
+				.get(eventtype).toString();
+
 		if (currentEvent.equals(EVENT_TYPES.TASK_STARTED.toString())) {
-			String currentVertexName = jo.getJSONArray(relatedEntities).getJSONObject(0).get(entity).toString();
+			String currentVertexName = jo.getJSONArray(relatedEntities)
+					.getJSONObject(0).get(entity).toString();
 			Vertex parentVertex = GetVertexByEntity(currentVertexName);
 			Task currentTask = new Task(parentVertex, jo);
 			parentVertex.AddTasktoTaskList(currentTask);
@@ -251,8 +243,10 @@ public class Dag {
 		}
 
 		if (currentEvent.equals(EVENT_TYPES.TASK_ATTEMPT_STARTED.toString())) {
-			// Logs are not structured so need to lookup the actual task for the given task ID
-			String currentTaskId = jo.getJSONArray(relatedEntities).getJSONObject(2).get(entity).toString();
+			// Logs are not structured so need to lookup the actual task for the
+			// given task ID
+			String currentTaskId = jo.getJSONArray(relatedEntities)
+					.getJSONObject(2).get(entity).toString();
 			Task currentTask = taskIdObjectMap.get(currentTaskId);
 			currentTask.HandleAttemptEvent(jo);
 		}
@@ -263,14 +257,16 @@ public class Dag {
 			currentTask.HandleFinishedEvent(jo);
 		}
 	}
-	
-	public void HandleVertexEvents(JSONObject jo) { 
 
-		String currentEvent =  jo.getJSONArray(events).getJSONObject(0).get(eventtype).toString();
+	public void HandleVertexEvents(JSONObject jo) {
+
+		String currentEvent = jo.getJSONArray(events).getJSONObject(0)
+				.get(eventtype).toString();
 		String currentVertexEntity = jo.get(entity).toString();
-		
+
 		if (currentEvent.equals(EVENT_TYPES.VERTEX_INITIALIZED.toString())) {
-			String currentVertexName = jo.getJSONObject(otherinfo).get(vertexName).toString();
+			String currentVertexName = jo.getJSONObject(otherinfo)
+					.get(vertexName).toString();
 			Vertex currentVertex = GetVertexByName(currentVertexName);
 			currentVertex.HandleInitializedEvent(jo, this);
 		}
@@ -286,144 +282,211 @@ public class Dag {
 		}
 
 	}
+
 	public boolean isDagParsingComplete() {
 		return dagParsingComplete;
 	}
-	public void parseKeyValuePairs(JSONArray ja, HashMap<String, String> hashmap )
-	{
-		 for (int j = 0 ; j < ja.length(); j++)
-		 {
-			 hashmap.put(ja.getJSONObject(j).getString(counterName), 
-					 ja.getJSONObject(j).get(counterValue).toString());
-		 }
+
+	public void PrintTaskSummary(List<String> aggregatedInfoKeys) {
+
+		for (String currentVertexName : verticesHashMap.keySet()) {
+			Vertex currentVertex = verticesHashMap.get(currentVertexName);
+
+			for (Task currentTask : currentVertex.GetTaskList()) {
+				System.out.println(currentTask
+						.getTaskValues(aggregatedInfoKeys));
+			}
+		}
 	}
+
+	public void PrintVertexSummary(List<String> aggregatedInfoKeys) {
+
+		System.out.println("\n"
+				+ Vertex.getVertexSummaryHeader(aggregatedInfoKeys));
+
+		for (String currentVertexName : verticesHashMap.keySet()) {
+			Vertex currentVertex = verticesHashMap.get(currentVertexName);
+
+			System.out.println(currentVertex
+					.getVertexValues(aggregatedInfoKeys));
+		}
+	}
+
 	public void setDAG_FINISHED(String dAG_FINISHED) {
 		dagFinishedTime = dAG_FINISHED;
 	}
+
 	public void setDAG_INITIALIZED(String dAG_INITIALIZED) {
 		dagInitializedTime = dAG_INITIALIZED;
 	}
+
 	public void setDAG_STARTED(String dAG_STARTED) {
 		dagStartedTime = dAG_STARTED;
 	}
+
 	public void setDAG_SUBMITTED(String dAG_SUBMITTED) {
 		dagSubmittedTime = dAG_SUBMITTED;
 	}
+
 	public void setEntity(String entity) {
 		this.dagEntity = entity;
 	}
+
 	public void setOtherInfo(JSONObject jsonObject) {
-		
+
 		if (handleSubmitted()) {
 			setOtherInfoSubmitted(jsonObject);
-		}
-		else
-		{
+		} else {
 			setOtherInfoFinished(jsonObject);
 		}
 	}
-	public void setOtherInfoFinished(JSONObject jsonObject)
-	{
-		dagDiagnostics  =  jsonObject.getString(diagnostics); 
-		dagStartTime 	=  jsonObject.getLong(startTime);
-		dagEndTime 		=   jsonObject.getLong(endTime);
-		dagTimeTaken = (int) jsonObject.get(timeTaken);
-		dagStatus 		= jsonObject.getString(status);
+	
+	public void handleRelatedEntities(JSONObject jsonObject) {
 		
-		JSONArray ja = jsonObject.getJSONObject("counters").getJSONArray("counterGroups");
-		
-		for (int i = 0 ; i < ja.length() ; i ++)
+		if (jsonObject.has(relatedEntities))
 		{
-			JSONObject currentCountersSet = ja.getJSONObject(i);
-			String currentGroupName = currentCountersSet.getString(counterGroupName);
-			JSONArray countersArray = currentCountersSet.getJSONArray(counters);
+			JSONArray relatedObjectsJson = jsonObject.getJSONArray(relatedEntities);
 			
+			for (int i = 0 ; i < relatedObjectsJson.length(); i++)
+			{
+				if(relatedObjectsJson.getJSONObject(i).getString(entitytype).equals(applicationId))
+				{
+					dagApplicationId = relatedObjectsJson.getJSONObject(i).getString(entity);
+					break;
+				}
+			}
+		}
+	}
+
+	public void setOtherInfoFinished(JSONObject jsonObject) {
+		dagDiagnostics = jsonObject.getString(diagnostics);
+		dagStartTime = jsonObject.getLong(startTime);
+		dagEndTime = jsonObject.getLong(endTime);
+		dagTimeTaken = (int) jsonObject.get(timeTaken);
+		dagStatus = jsonObject.getString(status);
+
+		JSONArray ja = jsonObject.getJSONObject("counters").getJSONArray(
+				"counterGroups");
+
+		for (int i = 0; i < ja.length(); i++) {
+			JSONObject currentCountersSet = ja.getJSONObject(i);
+			String currentGroupName = currentCountersSet
+					.getString(counterGroupName);
+
+			String objectType = currentCountersSet.get("counters").getClass()
+					.getName();
+			JSONArray countersArray = null;
+			JSONObject countersObject = null;
+
+			if (objectType.equals("org.json.JSONObject")) {
+				countersObject = currentCountersSet.getJSONObject(counters);
+			} else {
+				countersArray = currentCountersSet.getJSONArray(counters);
+			}
+
 			switch (currentGroupName) {
 
-				// Parse dag counters such as TOTAL_LAUNCHED_TASKS, DATA_LOCAL_TASKS and RACK_LOCAL_TASKS
-				case dagCounters:  
-				{
-					parseKeyValuePairs(countersArray,dagCountersHashMap);
-				};
+			// Parse dag counters such as TOTAL_LAUNCHED_TASKS, DATA_LOCAL_TASKS
+			// and RACK_LOCAL_TASKS
+			case dagCounters: {
+				Utils.parseKeyValuePairs(countersArray, countersObject,
+						dagCountersHashMap);
+			}
+				;
 				break;
-	
-				// Parse file systems counters such as FILE_BYTES_READ, FILE_BYTES_WRITTEN, FILE_READ_OPS,HDFS_BYTES_READ etc..
-				case fileSystemCounter:  
-				{
-					parseKeyValuePairs(countersArray,fileSystemCountersHashMap);
-				};
+
+			// Parse file systems counters such as FILE_BYTES_READ,
+			// FILE_BYTES_WRITTEN, FILE_READ_OPS,HDFS_BYTES_READ etc..
+			case fileSystemCounter: {
+				Utils.parseKeyValuePairs(countersArray, countersObject,
+						fileSystemCountersHashMap);
+			}
+				;
 				break;
-	
-				// Parse file systems counters such as GC_TIME_MILLIS, CPU_MILLISECONDS, PHYSICAL_MEMORY_BYTES,VIRTUAL_MEMORY_BYTES etc..
-				case taskCounter:  
-				{
-					parseKeyValuePairs(countersArray,taskCountersHashMap);
-				};
+
+			// Parse file systems counters such as GC_TIME_MILLIS,
+			// CPU_MILLISECONDS, PHYSICAL_MEMORY_BYTES,VIRTUAL_MEMORY_BYTES
+			// etc..
+			case taskCounter: {
+				Utils.parseKeyValuePairs(countersArray, countersObject,
+						taskCountersHashMap);
+			}
+				;
 				break;
-	
-				// Parse file systems counters such as CREATED_FILES
-				case hivecounter:  
-				{
-					parseKeyValuePairs(countersArray,hiveCountersHashMap);
-				};
+
+			// Parse file systems counters such as CREATED_FILES
+			case hivecounter: {
+				Utils.parseKeyValuePairs(countersArray, countersObject,
+						hiveCountersHashMap);
+			}
+				;
 				break;
-				
-				default:
-				{
-					HashMap<String, String> taskCountersMap = new HashMap<String, String>();
-					parseKeyValuePairs(countersArray, taskCountersMap);
-					hiveVertexCountersHashMap.put(currentGroupName, taskCountersMap);
-				}
+
+			default: {
+				HashMap<String, String> taskCountersMap = new HashMap<String, String>();
+				Utils.parseKeyValuePairs(countersArray, countersObject,
+						taskCountersMap);
+				hiveVertexCountersHashMap
+						.put(currentGroupName, taskCountersMap);
+			}
 				break;
 			}
 		}
-		
+
+		aggregatedInfo = Utils.AggregateTaskCounters(hiveVertexCountersHashMap);
+
+		// Save all the keys as they are needed for printing the Vertex and task
+		// counters
+		aggregatedInfoKeys.addAll(aggregatedInfo.keySet());
+
 		dagParsingComplete = true;
 	}
+
 	// Parse the Edge and Vertex info
-	void setOtherInfoSubmitted(JSONObject jo) 
-	
+	void setOtherInfoSubmitted(JSONObject jo)
+
 	{
 		m_dagName = (String) jo.getJSONObject(dagPlan).get(dagName);
 
-		for (int i = 0; i < jo.getJSONObject(dagPlan).getJSONArray(vertices).length(); i++) {
-			
+		for (int i = 0; i < jo.getJSONObject(dagPlan).getJSONArray(vertices)
+				.length(); i++) {
+
 			Vertex currentVertex = new Vertex(jo.getJSONObject(dagPlan)
 					.getJSONArray(vertices).getJSONObject(i));
-			
+
 			verticesHashMap.put(currentVertex.getVertexName(), currentVertex);
 		}
 
+		for (int i = 0; i < jo.getJSONObject(dagPlan).getJSONArray(edges)
+				.length(); i++) {
 
-		for (int i = 0; i < jo.getJSONObject(dagPlan).getJSONArray(edges).length(); i++) {
-			
 			Edge currentEdge = new Edge(jo.getJSONObject(dagPlan)
 					.getJSONArray(edges).getJSONObject(i));
 			edgesHashMap.put(currentEdge.getEdgeId(), currentEdge);
-			
+
 			currentEdge.setInputVertex(verticesHashMap.get(currentEdge
 					.getInputVertexName()));
-			
+
 			currentEdge.setOutputVertex(verticesHashMap.get(currentEdge
 					.getOutputVertex()));
 		}
-		
+
 		// Now set the edges in the vertices
-		for (Vertex currentVertex: verticesHashMap.values())
-		{
+		for (Vertex currentVertex : verticesHashMap.values()) {
 			// The vertex can have multiple inputs but one output
-			
+
 			// Save the input edges
-			for (String edgeId : currentVertex.getInEdgeIds())
-			{
+			for (String edgeId : currentVertex.getInEdgeIds()) {
 				currentVertex.AddEdgetoInputList(edgesHashMap.get(edgeId));
 			}
-			
+
 			// Save the out edge
-			currentVertex.SetVertexOutEdge(edgesHashMap.get(currentVertex.getOutEdgeId()));
+			currentVertex.SetVertexOutEdge(edgesHashMap.get(currentVertex
+					.getOutEdgeId()));
 		}
-		
+
 	}
+
 	@Override
 	public String toString() {
 		return "tezdag [dagInitializedTime=" + dagInitializedTime

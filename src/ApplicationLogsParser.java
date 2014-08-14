@@ -16,6 +16,7 @@ public class ApplicationLogsParser {
 	private static final String entitytype = "entitytype";
 	private static final String events = "events";
 	private static final String otherinfo = "otherinfo";
+	private static final String relatedEntities = "relatedEntities";
 	private static final String TEZ_DAG_ID = "TEZ_DAG_ID";						// Done without record counts
 	private static final String TEZ_VERTEX_ID = "TEZ_VERTEX_ID";				// Done without record counts
 	private static final String TEZ_TASK_ID = "TEZ_TASK_ID";					// Done without record counts
@@ -23,7 +24,7 @@ public class ApplicationLogsParser {
 	public static void main(String[] args) throws JSONException, Exception {
 		// TODO Auto-generated method stub
 
-		String applogFilePath = "//Users//mmokhtar//Downloads//schedulingissues//history.txt.appattempt_1406587903854_0285_000001";
+		String applogFilePath = "//Users//mmokhtar//Downloads//schedulingissues//history.txt.appattempt_1406587903854_0285_000002";
 		//applogFilePath = "//Users//mmokhtar//Downloads//schedulingissues//q17200g";
 		File applogFile = new File(applogFilePath);
 		ApplicationLogsParser logParser = new ApplicationLogsParser();
@@ -76,6 +77,11 @@ public class ApplicationLogsParser {
 				 {
 					 currentDag.setOtherInfo(dagJson.getJSONObject(otherinfo));
 				 }
+				 
+				 case relatedEntities:
+				 {
+					 currentDag.handleRelatedEntities(dagJson);
+				 }
 			 }
 		}
 		
@@ -126,14 +132,15 @@ public class ApplicationLogsParser {
 		
 		for (Dag td : dagList)
 		{
+			List<String> miscCountersHeader = td.GetaggregatedInfoKeys();
+			
 			System.out.println(dagList.get(0).getDagSummaryHeader());
 			System.out.println(td.getDagSummaryValues());	
 			
-			System.out.println("\n" + Vertex.getVertexSummaryHeader());
-			td.PrintVertexSummary();
+			td.PrintVertexSummary(miscCountersHeader);
+			System.out.println("\n" + Task.getTaskSummaryHeader(miscCountersHeader));
 
-			System.out.println("\n" + Task.getTaskSummaryHeader());
-			td.PrintTaskSummary();
+			td.PrintTaskSummary(miscCountersHeader);
 			System.out.println("\n");
 		}		
 	}
