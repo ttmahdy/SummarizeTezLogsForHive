@@ -457,18 +457,22 @@ public class Dag {
 			verticesHashMap.put(currentVertex.getVertexName(), currentVertex);
 		}
 
-		for (int i = 0; i < jo.getJSONObject(dagPlan).getJSONArray(edges)
-				.length(); i++) {
-
-			Edge currentEdge = new Edge(jo.getJSONObject(dagPlan)
-					.getJSONArray(edges).getJSONObject(i));
-			edgesHashMap.put(currentEdge.getEdgeId(), currentEdge);
-
-			currentEdge.setInputVertex(verticesHashMap.get(currentEdge
-					.getInputVertexName()));
-
-			currentEdge.setOutputVertex(verticesHashMap.get(currentEdge
-					.getOutputVertex()));
+		if (jo.getJSONObject(dagPlan).has(edges))
+		{
+		
+			for (int i = 0; i < jo.getJSONObject(dagPlan).getJSONArray(edges)
+					.length(); i++) {
+	
+				Edge currentEdge = new Edge(jo.getJSONObject(dagPlan)
+						.getJSONArray(edges).getJSONObject(i));
+				edgesHashMap.put(currentEdge.getEdgeId(), currentEdge);
+	
+				currentEdge.setInputVertex(verticesHashMap.get(currentEdge
+						.getInputVertexName()));
+	
+				currentEdge.setOutputVertex(verticesHashMap.get(currentEdge
+						.getOutputVertex()));
+			}
 		}
 
 		// Now set the edges in the vertices

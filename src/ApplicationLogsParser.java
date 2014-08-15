@@ -21,21 +21,23 @@ public class ApplicationLogsParser {
 	private static final String TEZ_VERTEX_ID = "TEZ_VERTEX_ID";				// Done without record counts
 	private static final String TEZ_TASK_ID = "TEZ_TASK_ID";					// Done without record counts
 	private static final String TEZ_TASK_ATTEMPT_ID = "TEZ_TASK_ATTEMPT_ID";
+	private Dag currentDag = null;
+	private List<Dag> dagList;
+	
 	public static void main(String[] args) throws JSONException, Exception {
-		// TODO Auto-generated method stub
 
 		String applogFilePath = "//Users//mmokhtar//Downloads//schedulingissues//history.txt.appattempt_1406587903854_0285_000002";
 		//applogFilePath = "//Users//mmokhtar//Downloads//schedulingissues//q17200g";
+		//applogFilePath = "//Users//mmokhtar//Downloads//schedulingissues//loadorc";
+		applogFilePath = "//Users//mmokhtar//Downloads//schedulingissues//loadtext";
+		
 		File applogFile = new File(applogFilePath);
 		ApplicationLogsParser logParser = new ApplicationLogsParser();
-
+	
 		logParser.readApplicationLogFile(applogFile);
-		
+			
 		logParser.PrintSummary();
-
 	}
-	private Dag currentDag = null;
-	private List<Dag> dagList;
 	
 	public ApplicationLogsParser() {
 		super();
@@ -181,7 +183,7 @@ public class ApplicationLogsParser {
 			
 			br.close();
 		} catch (FileNotFoundException ex) {
-
+			System.out.println(ex.getMessage());	
 		}
 	}
 
