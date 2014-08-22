@@ -1,3 +1,4 @@
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -147,6 +148,11 @@ public class Dag {
 		return header;
 	}
 
+	public String getDagApplicationId()
+	{
+		return dagApplicationId;
+	}
+	
 	public String getDagSummaryValues() {
 		String values = dagApplicationId + "," + dagEntity + "," + dagInitializedTime + ","
 				+ dagStartedTime + "," + dagSubmittedTime + ","
@@ -298,6 +304,25 @@ public class Dag {
 			}
 		}
 	}
+	
+	public ArrayList<String> getTaskSummary(List<String> aggregatedInfoKeys) {
+
+		ArrayList<String> taskSummary = new ArrayList<>();
+		
+		taskSummary.add("\n");
+		taskSummary.add(Task.getTaskSummaryHeader(aggregatedInfoKeys));
+		
+		for (String currentVertexName : verticesHashMap.keySet()) {
+			Vertex currentVertex = verticesHashMap.get(currentVertexName);
+
+			for (Task currentTask : currentVertex.GetTaskList()) {
+				taskSummary.add(currentTask
+						.getTaskValues(aggregatedInfoKeys));
+			}
+		}
+		
+		return taskSummary;
+	}
 
 	public void PrintVertexSummary(List<String> aggregatedInfoKeys) {
 
@@ -310,6 +335,19 @@ public class Dag {
 			System.out.println(currentVertex
 					.getVertexValues(aggregatedInfoKeys));
 		}
+	}
+	
+	public ArrayList<String> getVertexSummary(List<String> aggregatedInfoKeys) {
+
+		ArrayList<String> vertexSummary = new ArrayList<>();
+		vertexSummary.add(Vertex.getVertexSummaryHeader(aggregatedInfoKeys));
+
+		for (String currentVertexName : verticesHashMap.keySet()) {
+			Vertex currentVertex = verticesHashMap.get(currentVertexName);
+			vertexSummary.add(currentVertex
+					.getVertexValues(aggregatedInfoKeys));
+		}
+		return vertexSummary;
 	}
 
 	public void setDAG_FINISHED(String dAG_FINISHED) {

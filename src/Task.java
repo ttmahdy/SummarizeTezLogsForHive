@@ -20,17 +20,6 @@ public class Task {
 
 	private static final String taskCounter = "org.apache.tez.common.counters.TaskCounter";
 
-	public static String getTaskSummaryHeader(List<String> aggregatedInfoKeys) {
-		String header = "ParentDagId,VertexName,TaskNodeName,TaskContainerId,TaskId,TaskTimeTaken,ScheduledTime,StartTime,TaskEndTime,Status,"
-				+ " DataLocalTask,RackLocalTasks,FileBytesRead,FileBytesWritten,FileReadOps,FileLargeReadOps,FileWriteOps,HDFSBytesRead,HDFSBytesWritten,HDFSReadOps,HDFSLargeReadOps,HDFSWriteOps,GcTimeMs,CpuMs,PhysicalMemoryBytes,VirtualMemoryBytes,CommittedHeapBytes";
-
-		for (String key : aggregatedInfoKeys) {
-			header += "," + key;
-		}
-
-		return header;
-	}
-
 	HashMap<String, Long> aggregatedInfo;
 
 	HashMap<String, String> dagCountersHashMap;
@@ -75,6 +64,17 @@ public class Task {
 	}
 	public String getTaskId() {
 		return taskId;
+	}
+	
+	public static String getTaskSummaryHeader(List<String> aggregatedInfoKeys) {
+		String header = "ParentDagId,VertexName,TaskNodeName,TaskContainerId,TaskId,TaskTimeTaken,ScheduledTime,StartTime,TaskEndTime,Status,"
+				+ " DataLocalTask,RackLocalTasks,FileBytesRead,FileBytesWritten,FileReadOps,FileLargeReadOps,FileWriteOps,HDFSBytesRead,HDFSBytesWritten,HDFSReadOps,HDFSLargeReadOps,HDFSWriteOps,GcTimeMs,CpuMs,PhysicalMemoryBytes,VirtualMemoryBytes,CommittedHeapBytes";
+
+		for (String key : aggregatedInfoKeys) {
+			header += "," + key;
+		}
+
+		return header;
 	}
 
 	public String getTaskValues(List<String> aggregatedInfoKeys) {
