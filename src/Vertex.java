@@ -114,8 +114,11 @@ public class Vertex {
 	public static String getVertexSummaryHeader(List<String> aggregatedInfoKeys) {
 		String header = "ParentDagId,VertexName,Inputs,Destination,DataMovementType,AdditionalInputs,AdditionalOutputs,InitRequestedTime,InitTime,ProcessorClassName,StartRequestedTime,StartTime,EndTime,TimeTaken,Status,NumTasks,DataLocalTask,RackLocalTasks,FileBytesRead,FileBytesWritten,FileReadOps,FileLargeReadOps,FileWriteOps,HDFSBytesRead,HDFSBytesWritten,HDFSReadOps,HDFSLargeReadOps,HDFSWriteOps,GcTimeMs,CpuMs,PhysicalMemoryBytes,VirtualMemoryBytes,CommittedHeapBytes";
 
-		for (String key : aggregatedInfoKeys) {
-			header += "," + key;
+		if (aggregatedInfoKeys.size() > 0)
+		{
+			for (String key : aggregatedInfoKeys) {
+				header += "," + key;
+			}
 		}
 
 		return header;
@@ -257,7 +260,13 @@ public class Vertex {
 			}
 		}
 
-		String values = vertexParentDag.getEntity() + "," + vertexName + ","
+		String parentDagEntity=null;
+		if (vertexParentDag != null)
+		{
+			parentDagEntity = vertexParentDag.getEntity();
+		}
+		
+		String values = parentDagEntity + "," + vertexName + ","
 				+ vertexInputs + "," + vertexOutName + "," + dataMovementType
 				+ "," + vertexAdditionalInputName + ","
 				+ vertexAdditionalOutputName + ","
@@ -312,7 +321,14 @@ public class Vertex {
 	public void HandleFinishedEvent(JSONObject jsonObject) {
 		JSONObject otherInfoJson = jsonObject.getJSONObject(otherinfo);
 
+		try
+		{
 		vertexTimeTaken = (int) otherInfoJson.get("timeTaken");
+		}
+		catch (ClassCastException e)
+		{
+			vertexTimeTaken = -1;
+		}
 		vertexEndTime = otherInfoJson.getLong("endTime");
 		vertexStatus = otherInfoJson.getString("status");
 		vertexDiagnostics = otherInfoJson.getString("diagnostics");
@@ -321,8 +337,11 @@ public class Vertex {
 			return;
 		}
 
-		JSONArray ja = otherInfoJson.getJSONObject("counters").getJSONArray(
-				"counterGroups");
+		JSONArray ja = new JSONArray();
+		if (otherInfoJson.getJSONObject("counters").has("counterGroups"))
+		{
+			ja = otherInfoJson.getJSONObject("counters").getJSONArray("counterGroups");	
+		}
 
 		for (int i = 0; i < ja.length(); i++) {
 			JSONObject currentCountersSet = ja.getJSONObject(i);

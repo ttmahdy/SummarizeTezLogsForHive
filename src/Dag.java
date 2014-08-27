@@ -8,6 +8,43 @@ import org.json.JSONObject;
 
 public class Dag {
 
+	@Override
+	public int hashCode() {
+		// TODO Auto-generated method stub
+		return super.hashCode();
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		
+		if (this.getClass() != obj.getClass())
+		{
+			return false;
+		}
+		
+		if (this.dagEntity != ((Dag) obj).dagEntity)
+		{
+			return false;
+		}
+		
+		if (this.dagApplicationId != ((Dag) obj).dagApplicationId)
+		{
+			return false;
+		}
+		
+		if (this.dagStartedTime != ((Dag) obj).dagStartedTime)
+		{
+			return false;
+		}
+		
+		if (this.m_dagName != ((Dag) obj).m_dagName)
+		{
+			return false;
+		}
+
+		return true;
+	}
+
 	public enum EVENT_TYPES {
 		DAG_FINISHED("DAG_FINISHED"), DAG_INITIALIZED("DAG_INITIALIZED"), DAG_STARTED(
 				"DAG_STARTED"), DAG_SUBMITTED("DAG_SUBMITTED"), TASK_ATTEMPT_STARTED(
@@ -284,7 +321,10 @@ public class Dag {
 
 		if (currentEvent.equals(EVENT_TYPES.VERTEX_FINISHED.toString())) {
 			Vertex currentVertex = GetVertexByEntity(currentVertexEntity);
-			currentVertex.HandleFinishedEvent(jo);
+			if (currentVertex != null)
+			{
+				currentVertex.HandleFinishedEvent(jo);
+			}
 		}
 
 	}
@@ -397,77 +437,101 @@ public class Dag {
 	}
 
 	public void setOtherInfoFinished(JSONObject jsonObject) {
-		dagDiagnostics = jsonObject.getString(diagnostics);
+		
+		try
+		{
+			dagDiagnostics = jsonObject.getString(diagnostics);
+		}
+		catch (Exception e)
+		{
+			System.out.println(jsonObject.toString());
+		}
+		
 		dagStartTime = jsonObject.getLong(startTime);
 		dagEndTime = jsonObject.getLong(endTime);
 		dagTimeTaken = (int) jsonObject.get(timeTaken);
 		dagStatus = jsonObject.getString(status);
-
-		JSONArray ja = jsonObject.getJSONObject("counters").getJSONArray(
-				"counterGroups");
-
-		for (int i = 0; i < ja.length(); i++) {
-			JSONObject currentCountersSet = ja.getJSONObject(i);
-			String currentGroupName = currentCountersSet
-					.getString(counterGroupName);
-
-			String objectType = currentCountersSet.get("counters").getClass()
-					.getName();
-			JSONArray countersArray = null;
-			JSONObject countersObject = null;
-
-			if (objectType.equals("org.json.JSONObject")) {
-				countersObject = currentCountersSet.getJSONObject(counters);
+		
+		if (jsonObject.getJSONObject("counters").has("counters"))
+		
+		{
+			String jsonObjectType = jsonObject.getJSONObject("counters").get("counterGroups").getClass().getName();
+			JSONArray countersGroupsArray = new JSONArray();
+			JSONObject countersGroupsObject = null;
+	
+			if (jsonObjectType.equals("org.json.JSONObject")) {
+				countersGroupsObject = jsonObject.getJSONObject("counters").getJSONObject("counterGroups");
 			} else {
-				countersArray = currentCountersSet.getJSONArray(counters);
+				countersGroupsArray = jsonObject.getJSONObject("counters").getJSONArray("counterGroups");
 			}
-
-			switch (currentGroupName) {
-
-			// Parse dag counters such as TOTAL_LAUNCHED_TASKS, DATA_LOCAL_TASKS
-			// and RACK_LOCAL_TASKS
-			case dagCounters: {
-				Utils.parseKeyValuePairs(countersArray, countersObject,
-						dagCountersHashMap);
+			
+			if ((countersGroupsArray == null) && (countersGroupsObject != null))
+			{
+				countersGroupsArray.put(countersGroupsObject);
 			}
-				;
-				break;
-
-			// Parse file systems counters such as FILE_BYTES_READ,
-			// FILE_BYTES_WRITTEN, FILE_READ_OPS,HDFS_BYTES_READ etc..
-			case fileSystemCounter: {
-				Utils.parseKeyValuePairs(countersArray, countersObject,
-						fileSystemCountersHashMap);
-			}
-				;
-				break;
-
-			// Parse file systems counters such as GC_TIME_MILLIS,
-			// CPU_MILLISECONDS, PHYSICAL_MEMORY_BYTES,VIRTUAL_MEMORY_BYTES
-			// etc..
-			case taskCounter: {
-				Utils.parseKeyValuePairs(countersArray, countersObject,
-						taskCountersHashMap);
-			}
-				;
-				break;
-
-			// Parse file systems counters such as CREATED_FILES
-			case hivecounter: {
-				Utils.parseKeyValuePairs(countersArray, countersObject,
-						hiveCountersHashMap);
-			}
-				;
-				break;
-
-			default: {
-				HashMap<String, String> taskCountersMap = new HashMap<String, String>();
-				Utils.parseKeyValuePairs(countersArray, countersObject,
-						taskCountersMap);
-				hiveVertexCountersHashMap
-						.put(currentGroupName, taskCountersMap);
-			}
-				break;
+			
+			for (int i = 0; i < countersGroupsArray.length(); i++) {
+				JSONObject currentCountersSet = countersGroupsArray.getJSONObject(i);
+				String currentGroupName = currentCountersSet
+						.getString(counterGroupName);
+	
+				String objectType = currentCountersSet.get("counters").getClass().getName();
+				JSONArray countersArray = null;
+				JSONObject countersObject = null;
+	
+				if (objectType.equals("org.json.JSONObject")) {
+					countersObject = currentCountersSet.getJSONObject(counters);
+				} else {
+					countersArray = currentCountersSet.getJSONArray(counters);
+				}
+	
+				switch (currentGroupName) {
+	
+				// Parse dag counters such as TOTAL_LAUNCHED_TASKS, DATA_LOCAL_TASKS
+				// and RACK_LOCAL_TASKS
+				case dagCounters: {
+					Utils.parseKeyValuePairs(countersArray, countersObject,
+							dagCountersHashMap);
+				}
+					;
+					break;
+	
+				// Parse file systems counters such as FILE_BYTES_READ,
+				// FILE_BYTES_WRITTEN, FILE_READ_OPS,HDFS_BYTES_READ etc..
+				case fileSystemCounter: {
+					Utils.parseKeyValuePairs(countersArray, countersObject,
+							fileSystemCountersHashMap);
+				}
+					;
+					break;
+	
+				// Parse file systems counters such as GC_TIME_MILLIS,
+				// CPU_MILLISECONDS, PHYSICAL_MEMORY_BYTES,VIRTUAL_MEMORY_BYTES
+				// etc..
+				case taskCounter: {
+					Utils.parseKeyValuePairs(countersArray, countersObject,
+							taskCountersHashMap);
+				}
+					;
+					break;
+	
+				// Parse file systems counters such as CREATED_FILES
+				case hivecounter: {
+					Utils.parseKeyValuePairs(countersArray, countersObject,
+							hiveCountersHashMap);
+				}
+					;
+					break;
+	
+				default: {
+					HashMap<String, String> taskCountersMap = new HashMap<String, String>();
+					Utils.parseKeyValuePairs(countersArray, countersObject,
+							taskCountersMap);
+					hiveVertexCountersHashMap
+							.put(currentGroupName, taskCountersMap);
+				}
+					break;
+				}
 			}
 		}
 
@@ -486,30 +550,39 @@ public class Dag {
 	{
 		m_dagName = (String) jo.getJSONObject(dagPlan).get(dagName);
 
-		for (int i = 0; i < jo.getJSONObject(dagPlan).getJSONArray(vertices)
-				.length(); i++) {
-
-			Vertex currentVertex = new Vertex(jo.getJSONObject(dagPlan)
-					.getJSONArray(vertices).getJSONObject(i));
-
+		for (int i = 0; i < jo.getJSONObject(dagPlan).getJSONArray(vertices).length(); i++) {
+			Vertex currentVertex = new Vertex(jo.getJSONObject(dagPlan).getJSONArray(vertices).getJSONObject(i));
 			verticesHashMap.put(currentVertex.getVertexName(), currentVertex);
 		}
 
 		if (jo.getJSONObject(dagPlan).has(edges))
 		{
 		
-			for (int i = 0; i < jo.getJSONObject(dagPlan).getJSONArray(edges)
-					.length(); i++) {
+			
+			
+			String objectType = jo.getJSONObject(dagPlan).get(edges).getClass().getName();
+			JSONArray edgesArray = new JSONArray();
+			JSONObject edgesObject = null;
+
+			if (objectType.equals("org.json.JSONObject")) {
+				edgesObject = jo.getJSONObject(dagPlan).getJSONObject(edges);
+			}
+			else 
+			{
+				edgesArray = jo.getJSONObject(dagPlan).getJSONArray(edges);
+			}
+			
+			if( edgesArray.length() ==0)
+			{
+				edgesArray.put(edgesObject);
+			}
+			
+			for (int i = 0; i < edgesArray.length(); i++) {
 	
-				Edge currentEdge = new Edge(jo.getJSONObject(dagPlan)
-						.getJSONArray(edges).getJSONObject(i));
+				Edge currentEdge = new Edge(edgesArray.getJSONObject(i));
 				edgesHashMap.put(currentEdge.getEdgeId(), currentEdge);
-	
-				currentEdge.setInputVertex(verticesHashMap.get(currentEdge
-						.getInputVertexName()));
-	
-				currentEdge.setOutputVertex(verticesHashMap.get(currentEdge
-						.getOutputVertex()));
+				currentEdge.setInputVertex(verticesHashMap.get(currentEdge.getInputVertexName()));
+				currentEdge.setOutputVertex(verticesHashMap.get(currentEdge.getOutputVertex()));
 			}
 		}
 
@@ -523,8 +596,7 @@ public class Dag {
 			}
 
 			// Save the out edge
-			currentVertex.SetVertexOutEdge(edgesHashMap.get(currentVertex
-					.getOutEdgeId()));
+			currentVertex.SetVertexOutEdge(edgesHashMap.get(currentVertex.getOutEdgeId()));
 		}
 
 	}

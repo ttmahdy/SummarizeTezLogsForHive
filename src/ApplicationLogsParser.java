@@ -42,7 +42,7 @@ public class ApplicationLogsParser {
 	private String inputFile;
 	private String inputFolder;
 	private String outPutFolder;
-	private String outPutPrefix;
+	private String outPutPrefix = "";
 	
 	private boolean writeToConsole;
 	private Dag currentDag = null;
@@ -182,6 +182,10 @@ public class ApplicationLogsParser {
 		if (currentDag== null)
 		{
 			currentDag = new Dag();
+			if (!dagList.contains(currentDag))
+			{
+				dagList.add(currentDag);	
+			}
 		}
 			
 		if (!dagJson.getString(entitytype).equals(TEZ_DAG_ID))
@@ -224,7 +228,11 @@ public class ApplicationLogsParser {
 		// as there can be multiple dags per file
 		if (currentDag.isDagParsingComplete())
 		{
-			dagList.add(currentDag);
+			
+			if (!dagList.contains(currentDag))
+			{
+				dagList.add(currentDag);	
+			}
 			currentDag = new Dag();
 		}
 	}
@@ -268,10 +276,15 @@ public class ApplicationLogsParser {
 		for (Dag td : dagList)
 		{
 			List<String> miscCountersHeader = td.GetaggregatedInfoKeys();
+			
+			if (miscCountersHeader.size() == 0)
+			{
+				miscCountersHeader = Arrays.asList("OUTPUT_ADDITIONAL_SPILLS_BYTES_WRITTEN","INPUT_NUM_FAILED_SHUFFLE_INPUTS","OUTPUT_OUTPUT_BYTES","INPUT_REDUCE_INPUT_RECORDS","OUTPUT_OUTPUT_BYTES_WITH_OVERHEAD","INPUT_WRONG_LENGTH","INPUT_IO_ERROR","INPUT_SHUFFLE_BYTES","MISC_PASSED","INPUT_NUM_SHUFFLED_INPUTS","INPUT_SHUFFLE_BYTES_TO_DISK","INPUT_MERGED_MAP_OUTPUTS","INPUT_NUM_MEM_TO_DISK_MERGES","OUTPUT_ADDITIONAL_SPILL_COUNT","OUTPUT_ADDITIONAL_SPILLS_BYTES_READ","MISC_FILTERED","OUTPUT_OUTPUT_RECORDS","INPUT_SPILLED_RECORDS","INPUT_WRONG_MAP","OUTPUT_SPILLED_RECORDS","INPUT_NUM_DISK_TO_DISK_MERGES","INPUT_ADDITIONAL_SPILLS_BYTES_WRITTEN","MISC_DESERIALIZE_ERRORS","INPUT_INPUT_RECORDS_PROCESSED","INPUT_SHUFFLE_BYTES_DECOMPRESSED","INPUT_WRONG_REDUCE","INPUT_CONNECTION","OUTPUT_OUTPUT_BYTES_PHYSICAL","INPUT_NUM_SKIPPED_INPUTS","INPUT_REDUCE_INPUT_GROUPS","INPUT_SHUFFLE_BYTES_TO_MEM","INPUT_COMBINE_INPUT_RECORDS","INPUT_ADDITIONAL_SPILLS_BYTES_READ","INPUT_BAD_ID");
+			}
 
 			// DAG
 			
-			if (outPutFolder.isEmpty() || writeToConsole)
+			if (outPutFolder == null || writeToConsole)
 			{
 				// Print the DAG header 
 				System.out.println(dagList.get(0).getDagSummaryHeader());
@@ -288,7 +301,7 @@ public class ApplicationLogsParser {
 				System.out.println("\n");
 			}
 			
-			if (outPutFolder.length() > 0)
+			if (outPutFolder != null)
 			{
 				File outFolder = new File(outPutFolder);
 				
@@ -298,7 +311,15 @@ public class ApplicationLogsParser {
 					outFolder.mkdir();
 				}
 				
-				String summaryFileName = outPutFolder + "//"+outPutPrefix + "-" + td.getDagApplicationId()+"-"+td.getEntity()+".csv";
+				String summaryFileName = outPutFolder + "//";
+				if (outPutPrefix.length() > 0)
+				{
+					summaryFileName += outPutPrefix + "-" + td.getDagApplicationId()+"-"+td.getEntity()+".csv";
+				}
+				else
+				{
+					summaryFileName += td.getDagApplicationId()+"-"+td.getEntity()+".csv";
+				}
 				
 				FileWriter fileWriter = new FileWriter(summaryFileName);
 	
@@ -326,20 +347,26 @@ public class ApplicationLogsParser {
 	@SuppressWarnings("finally")
 	public void parseLogFiles() throws JSONException, Exception
 	{
+		int currentFileId = 0;
+		int totalFiles = inputFileList.size();
 		for (File logFile : inputFileList)
 		{
 			try
 			{
+				System.out.println("Parsing file : " + logFile.getAbsolutePath() + " " + currentFileId + " out of " + totalFiles);
 				readApplicationLogFile(logFile);
 			}
 			catch (Exception e)
 			{
 				System.err.print("Error parsing" + logFile.getAbsolutePath() + "\n" + e.getClass() + "\n" + e.getMessage()   + "\n"  );
+				e.printStackTrace();
 			}
 			finally
 			{
+				currentFileId++;
 				continue;
 			}
+			
 		}
 	}
 	
@@ -353,7 +380,22 @@ public class ApplicationLogsParser {
 
 			while ((jsonLogLine = br.readLine()) != null) {
 				jsonLogLine = jsonLogLine.replaceAll("\\p{Cc}", "").replaceAll("[\u0000-\u001f]","");
-				JSONObject obj = new JSONObject(jsonLogLine);
+				JSONObject obj = null;
+				
+				// Handle truncate json lines
+				
+				try
+				{
+					obj = new JSONObject(jsonLogLine);
+				}
+				catch (JSONException e)
+				{
+					System.err.println("Error while parsing " + appLogFile.getAbsolutePath());
+					e.printStackTrace();
+					currentDag = null;
+					continue;
+				}
+				
 
 				if (obj.has(entitytype)) {
 

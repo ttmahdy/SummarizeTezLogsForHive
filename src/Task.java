@@ -129,9 +129,13 @@ public class Task {
 		if (taskStatus.equalsIgnoreCase("KILLED")) {
 			return;
 		}
-
-		JSONArray ja = otherInfoJson.getJSONObject("counters").getJSONArray(
-				"counterGroups");
+		
+		JSONArray ja = new JSONArray();
+		if(otherInfoJson.getJSONObject("counters").has("counterGroups"))
+		{
+			ja =otherInfoJson.getJSONObject("counters").getJSONArray("counterGroups");
+		}
+		
 		for (int i = 0; i < ja.length(); i++) {
 			JSONObject currentCountersSet = ja.getJSONObject(i);
 			String currentGroupName = currentCountersSet
