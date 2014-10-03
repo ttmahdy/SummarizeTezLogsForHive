@@ -391,6 +391,7 @@ public class ApplicationLogsParser {
 				catch (JSONException e)
 				{
 					System.err.println("Error while parsing " + appLogFile.getAbsolutePath());
+					System.err.println(jsonLogLine);
 					e.printStackTrace();
 					currentDag = null;
 					continue;
