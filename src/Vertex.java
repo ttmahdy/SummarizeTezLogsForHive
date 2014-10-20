@@ -317,6 +317,27 @@ public class Vertex {
 
 		return values;
 	}
+	
+	public void AdjustTimings ()
+	{
+		long minVertexnStartTime = Long.MAX_VALUE;
+		long maxVertexStartTime = Long.MIN_VALUE;
+		
+		for (Task task : vertexTasks) {
+			long taskStartTime = task.taskStartTime;
+			long taskEndTime = task.taskEndTime;
+			
+			if (taskStartTime < minVertexnStartTime)
+				minVertexnStartTime = taskStartTime;
+			
+			if (taskEndTime > maxVertexStartTime)
+				maxVertexStartTime = taskEndTime;
+		}
+		
+		vertexEndTime = maxVertexStartTime;
+		vertexCounters.get("startTime");
+		vertexCounters.put("startTime", Long.toString(minVertexnStartTime));
+	}
 
 	public void HandleFinishedEvent(JSONObject jsonObject) {
 		JSONObject otherInfoJson = jsonObject.getJSONObject(otherinfo);
@@ -401,6 +422,9 @@ public class Vertex {
 
 		aggregatedInfo = Utils.AggregateTaskCounters(vertexCountersHashMap);
 
+		//Use the Min start time and max start time from the tasks for the vertex start and end time
+		AdjustTimings();
+		
 		vertexParsingComplete = true;
 	}
 
