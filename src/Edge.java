@@ -1,10 +1,9 @@
 import org.json.JSONObject;
 
-
 public class Edge {
 
 	String dataMovementType;
-    String dataSourceType;
+	String dataSourceType;
 	String edgeDestinationClass;
 	String edgeId;
 	String edgeSourceClass;
@@ -12,59 +11,76 @@ public class Edge {
 	String schedulingType;
 	String tableSource;
 	String inputVertexName;
+	final String DATA_MOVEMENT_TYPE = "dataMovementType";
+	final String DATA_SOURCE_TYPE = "dataSourceType";
+	final String EDGE_DESTINATION_CLASS = "edgeDestinationClass";
+	final String EDGE_ID = "edgeId";
+	final String EDGE_SOURCE_CLASS = "edgeSourceClass";
+	final String INPUT_VERTEX_NAME = "inputVertexName";
+	final String OUTPUT_VERTEX_NAME = "outputVertexName";
+	final String SCHEDULING_TYPE = "schedulingType";
 
 	Vertex inputVertex;
 	Vertex outputVertex;
 
 	public Edge(JSONObject jo) {
-    	dataMovementType = jo.getString("dataMovementType");
-        dataSourceType = jo.getString("dataSourceType");
-        edgeDestinationClass = jo.getString("edgeDestinationClass");
-        edgeId = jo.getString("edgeId");
-        edgeSourceClass = jo.getString("edgeSourceClass");
-        inputVertexName = jo.getString("inputVertexName");
-        outputVertexName = jo.getString("outputVertexName");
-        schedulingType = jo.getString("schedulingType");
+		dataMovementType = jo.getString(DATA_MOVEMENT_TYPE);
+		dataSourceType = jo.getString(DATA_SOURCE_TYPE);
+		edgeDestinationClass = jo.getString(EDGE_DESTINATION_CLASS);
+		edgeId = jo.getString(EDGE_ID);
+		edgeSourceClass = jo.getString(EDGE_SOURCE_CLASS);
+		inputVertexName = jo.getString(INPUT_VERTEX_NAME);
+		outputVertexName = jo.getString(OUTPUT_VERTEX_NAME);
+		schedulingType = jo.getString(SCHEDULING_TYPE);
 	}
 
 	public String getDataMovementType() {
 		return dataMovementType;
 	}
-    public String getDataSourceType() {
+
+	public String getDataSourceType() {
 		return dataSourceType;
 	}
-    public String getEdgeDestinationClass() {
+
+	public String getEdgeDestinationClass() {
 		return edgeDestinationClass;
 	}
-    public String getEdgeId() {
+
+	public String getEdgeId() {
 		return edgeId;
 	}
-    public String getEdgeSourceClass() {
+
+	public String getEdgeSourceClass() {
 		return edgeSourceClass;
 	}
-    public Vertex getInputVertex() {
+
+	public Vertex getInputVertex() {
 		return inputVertex;
 	}
-    public String getInputVertexName() {
+
+	public String getInputVertexName() {
 		return inputVertexName;
 	}
-    public Vertex getOutputVertex() {
+
+	public Vertex getOutputVertex() {
 		return outputVertex;
 	}
-    public String getOutputVertexName() {
+
+	public String getOutputVertexName() {
 		return outputVertexName;
 	}
-    public String getSchedulingType() {
+
+	public String getSchedulingType() {
 		return schedulingType;
 	}
-    public String getTableSource() {
+
+	public String getTableSource() {
 		return tableSource;
 	}
 
 	public void setInputVertex(Vertex inputVertex) {
 		this.inputVertex = inputVertex;
-		if (inputVertex.getInputs() != null)
-		{
+		if (inputVertex.getInputs() != null) {
 			this.tableSource = inputVertex.getInputs().getName();
 		}
 	}

@@ -21,357 +21,350 @@ import org.json.JSONObject;
 
 public class ApplicationLogsParser {
 
-	private static final String  entity = "entity";
+	private static final String ENTITY = "entity";
 
-	private static final String entitytype = "entitytype";
-	private static final String events = "events";
-	private static final String otherinfo = "otherinfo";
-	private static final String relatedEntities = "relatedEntities";
-	private static final String TEZ_DAG_ID = "TEZ_DAG_ID";						// Done without record counts
-	private static final String TEZ_VERTEX_ID = "TEZ_VERTEX_ID";				// Done without record counts
-	private static final String TEZ_TASK_ID = "TEZ_TASK_ID";					// Done without record counts
+	private static final String ENTITY_TYPE = "entitytype";
+	private static final String EVENTS = "events";
+	private static final String OTHER_INFO = "otherinfo";
+	private static final String RELATED_ENTITIES = "relatedEntities";
+	private static final String TEZ_DAG_ID = "TEZ_DAG_ID"; 
+	private static final String TEZ_VERTEX_ID = "TEZ_VERTEX_ID";
+	private static final String TEZ_TASK_ID = "TEZ_TASK_ID"; 
 	private static final String TEZ_TASK_ATTEMPT_ID = "TEZ_TASK_ATTEMPT_ID";
-	
+
 	// Command line options
-	private static final String INPUT_FILE = "inputfile"; 
+	private static final String INPUT_FILE = "inputfile";
 	private static final String INPUT_FOLDER = "inputfolder";
 	private static final String OUTPUT_PATH = "outputPath";
 	private static final String OUTPUT_PREFIX = "outputprefix";
 	private static final String WRITE_TO_CONSOLE = "writetoconsole";
-	
+
 	private String inputFile;
 	private String inputFolder;
 	private String outPutFolder;
 	private String outPutPrefix = "";
-	
+
 	private boolean writeToConsole;
 	private Dag currentDag = null;
 	private List<File> inputFileList;
 	private List<Dag> dagList;
 	private Options cmdLineOptions;
 	private CommandLineParser cmdLineParser;
-	
+
 	public static void main(String[] args) throws JSONException, Exception {
 
-		String applogFilePath = "//Users//mmokhtar//Downloads//schedulingissues//history.txt.appattempt_1406587903854_0285_000002";
-		//applogFilePath = "//Users//mmokhtar//Downloads//schedulingissues//q17200g";
-		//applogFilePath = "//Users//mmokhtar//Downloads//schedulingissues//loadorc";
-		applogFilePath = "//Users//mmokhtar//Downloads//schedulingissues//loadtext";
-		
-		
-		File applogFile = new File(applogFilePath);
-		
 		ApplicationLogsParser logParser = new ApplicationLogsParser();
-	
+
 		logParser.ParseCommandLineOptions(args);
-		
+
 		logParser.parseLogFiles();
-		
-		//logParser.readApplicationLogFile(applogFile);
-			
-		logParser.PrintSummary();
 	}
-	
+
 	public ApplicationLogsParser() {
 		super();
 		this.dagList = new ArrayList<Dag>();
-		
+
 		this.inputFileList = new ArrayList<File>();
-		
+
 		// Construct the command line parsers
 		cmdLineOptions = new Options();
 		cmdLineParser = new GnuParser();
 
-		// Set the command line options	
+		// Set the command line options
 		cmdLineOptions.addOption(INPUT_FILE, true, "input log file to parse");
-		cmdLineOptions.addOption(INPUT_FOLDER, true, "input folder to parse contained files");
-		cmdLineOptions.addOption(OUTPUT_PATH, true, "out folder for summary file");
-		cmdLineOptions.addOption(OUTPUT_PREFIX, true, "prefix for output file name");
-		cmdLineOptions.addOption(WRITE_TO_CONSOLE,false , "flag to print to console");
-		
+		cmdLineOptions.addOption(INPUT_FOLDER, true,
+				"input folder to parse contained files");
+		cmdLineOptions.addOption(OUTPUT_PATH, true,
+				"out folder for summary file");
+		cmdLineOptions.addOption(OUTPUT_PREFIX, true,
+				"prefix for output file name");
+		cmdLineOptions.addOption(WRITE_TO_CONSOLE, false,
+				"flag to print to console");
+
 	}
-	
+
 	// Parse the command line options
-	public void ParseCommandLineOptions(String[] args)
-	{
+	public void ParseCommandLineOptions(String[] args) {
 		try {
-			CommandLine cmd = cmdLineParser.parse( cmdLineOptions, args);
-			
-			
-			if ((cmd.hasOption(INPUT_FILE) && cmd.hasOption(INPUT_FOLDER)) || (!cmd.hasOption(INPUT_FILE) && !cmd.hasOption(INPUT_FOLDER)))
-			{
-				String error = "Parsing failed.  Reason: " + " Please use either " + INPUT_FILE + " or " + INPUT_FOLDER;
+			CommandLine cmd = cmdLineParser.parse(cmdLineOptions, args);
+
+			if ((cmd.hasOption(INPUT_FILE) && cmd.hasOption(INPUT_FOLDER))
+					|| (!cmd.hasOption(INPUT_FILE) && !cmd
+							.hasOption(INPUT_FOLDER))) {
+				String error = "Parsing failed.  Reason: "
+						+ " Please use either " + INPUT_FILE + " or "
+						+ INPUT_FOLDER;
 				throw new ParseException(error);
 			}
-			
-			if(cmd.hasOption(INPUT_FILE))
-			{
+
+			if (cmd.hasOption(INPUT_FILE)) {
 				inputFile = cmd.getOptionValue(INPUT_FILE);
-				 File fileToParse = new File(inputFile);
-				 if (fileToParse.isFile())
-				 {
-					 inputFileList.add(fileToParse);
-				 }
-				 else
-				 {
-					 throw new ParseException("Command line option " + INPUT_FILE + " excpects a file");
-				 }
+				File fileToParse = new File(inputFile);
+				if (fileToParse.isFile()) {
+					inputFileList.add(fileToParse);
+				} else {
+					throw new ParseException("Command line option "
+							+ INPUT_FILE + " excpects a file");
+				}
 			}
-			
-			if(cmd.hasOption(INPUT_FOLDER))
-			{
+
+			if (cmd.hasOption(INPUT_FOLDER)) {
 				inputFolder = cmd.getOptionValue(INPUT_FOLDER);
-				 File filesToParse = new File(inputFolder);
-				 FilenameFilter fileFilter = new FilenameFilter() {
+				File filesToParse = new File(inputFolder);
+				FilenameFilter fileFilter = new FilenameFilter() {
 					@Override
 					public boolean accept(File dir, String name) {
-						if(name.contains(".DS_Store"))
-						{
+						if (name.contains(".DS_Store")) {
 							return false;
 						}
-						
-						if(name.endsWith(".csv"))
-						{
+
+						if (name.endsWith(".csv")) {
 							return false;
 						}
 						return true;
 					}
 				};
-						 
-						 
-				 if (filesToParse.isDirectory())
-				 {
-					 inputFileList = Arrays.asList(filesToParse.listFiles(fileFilter));	 
-				 }
-				 else
-				 {
-					 throw new ParseException("Command line option " + INPUT_FOLDER + " excpects a folder");
-				 }
+
+				if (filesToParse.isDirectory()) {
+					inputFileList = Arrays.asList(filesToParse
+							.listFiles(fileFilter));
+				} else {
+					throw new ParseException("Command line option "
+							+ INPUT_FOLDER + " excpects a folder");
+				}
 			}
 
-			if(cmd.hasOption(OUTPUT_PATH))
-			{
+			if (cmd.hasOption(OUTPUT_PATH)) {
 				outPutFolder = cmd.getOptionValue(OUTPUT_PATH);
 			}
-			
-			if(cmd.hasOption(OUTPUT_PREFIX))
-			{
+
+			if (cmd.hasOption(OUTPUT_PREFIX)) {
 				outPutPrefix = cmd.getOptionValue(OUTPUT_PREFIX);
 			}
-			
-			if(cmd.hasOption(WRITE_TO_CONSOLE))
-			{
+
+			if (cmd.hasOption(WRITE_TO_CONSOLE)) {
 				writeToConsole = true;
-			}
-			else
-			{
+			} else {
 				writeToConsole = false;
 			}
-			
-		} catch( ParseException exp ) {
-	        // oops, something went wrong
-	        System.err.println( "Parsing failed.  Reason: " + exp.getMessage() );
+
+		} catch (ParseException exp) {
+			// oops, something went wrong
+			System.err.println("Parsing failed.  Reason: " + exp.getMessage());
 			HelpFormatter formatter = new HelpFormatter();
-			formatter.printHelp( "summarizeLogs.jar", cmdLineOptions );
-
-	    }
+			formatter.printHelp("summarizeLogs.jar", cmdLineOptions);
+		}
 	}
-	
-	public void HandleDag (JSONObject dagJson) throws JSONException, Exception
-	{
-		if (currentDag== null)
-		{
+
+	public void HandleDag(JSONObject dagJson) throws JSONException, Exception {
+		if (currentDag == null) {
 			currentDag = new Dag();
-			if (!dagList.contains(currentDag))
-			{
-				dagList.add(currentDag);	
+			if (!dagList.contains(currentDag)) {
+				dagList.add(currentDag);
 			}
 		}
-			
-		if (!dagJson.getString(entitytype).equals(TEZ_DAG_ID))
-		{
-			 throw new Exception("Check the dag provided to  HandleDag : " + dagJson.getString(entitytype) + " "+ dagJson.toString());
+
+		if (!dagJson.getString(ENTITY_TYPE).equals(TEZ_DAG_ID)) {
+			throw new Exception("Check the dag provided to  HandleDag : "
+					+ dagJson.getString(ENTITY_TYPE) + " " + dagJson.toString());
 		}
-		
+
 		for (String key : dagJson.keySet()) {
-			
-			 switch (key) {
-			 
-			 // Parse events such as DAG_INITIALIZED, DAG_STARTED , DAG_SUBMITTED and DAG_FINISHED
-			 case events:  
-				 {
-					// String eventType = dagJson.getString(events);
-					 JSONArray ja =  dagJson.getJSONArray(events);
-					 currentDag.HandleDagEvents(ja);
-				 };
-	             break;
-			 
-				 case entity:  
-				 {
-					 currentDag.setEntity((String) dagJson.get(entity));
-				 };
-	             break;
-	             
-				 case otherinfo:
-				 {
-					 currentDag.setOtherInfo(dagJson.getJSONObject(otherinfo));
-				 }
-				 
-				 case relatedEntities:
-				 {
-					 currentDag.handleRelatedEntities(dagJson);
-				 }
-			 }
+
+			switch (key) {
+
+			// Parse events such as DAG_INITIALIZED, DAG_STARTED , DAG_SUBMITTED
+			// and DAG_FINISHED
+			case EVENTS: {
+				// String eventType = dagJson.getString(events);
+				JSONArray ja = dagJson.getJSONArray(EVENTS);
+				currentDag.HandleDagEvents(ja);
+			}
+			;
+			break;
+
+			case ENTITY: {
+				currentDag.setEntity((String) dagJson.get(ENTITY));
+			}
+			;
+			break;
+
+			case OTHER_INFO: {
+				currentDag.setOtherInfo(dagJson.getJSONObject(OTHER_INFO));
+			}
+
+			case RELATED_ENTITIES: {
+				currentDag.handleRelatedEntities(dagJson);
+			}
+			}
 		}
-		
-		// If we are done with this dag save it off to the list and start a new one.
-		// as there can be multiple dags per file
-		if (currentDag.isDagParsingComplete())
-		{
-			
-			if (!dagList.contains(currentDag))
-			{
-				dagList.add(currentDag);	
+
+		// If we are done with this DAG save it off to the list and start a new
+		// one, as there can be multiple DAGs per file
+		if (currentDag.isDagParsingComplete()) {
+
+			if (!dagList.contains(currentDag)) {
+				dagList.add(currentDag);
 			}
 			currentDag = new Dag();
 		}
 	}
 
-	public void HandleVertex (JSONObject dagJson) throws JSONException, Exception
-	{
-		if (currentDag== null)
-		{
-			throw new Exception("We are trying to parse a Vertex without a dag" + dagJson.toString());	
+	public void HandleVertex(JSONObject dagJson) throws JSONException,
+	Exception {
+		if (currentDag == null) {
+			throw new Exception("We are trying to parse a Vertex without a dag"
+					+ dagJson.toString());
 		}
-		
-		if (!dagJson.getString(entitytype).equals(TEZ_VERTEX_ID))
-		{
-			 throw new Exception("Check the dag provided to  HandleVertex : " + dagJson.getString(entitytype) + " "+ dagJson.toString());
+
+		if (!dagJson.getString(ENTITY_TYPE).equals(TEZ_VERTEX_ID)) {
+			throw new Exception("Check the dag provided to  HandleVertex : "
+					+ dagJson.getString(ENTITY_TYPE) + " " + dagJson.toString());
 		}
-		
-		// The JSON has a flat structured, so this work is needed :( 
+
+		// The JSON has a flat structured, so this work is needed :(
 		currentDag.HandleVertexEvents(dagJson);
 	}
-	
-	public void HandleTask (JSONObject dagJson) throws JSONException, Exception
-	{
-		if (currentDag== null)
-		{
-			throw new Exception("We are trying to parse a Vertex without a dag" + dagJson.toString());	
+
+	public void HandleTask(JSONObject dagJson) throws JSONException, Exception {
+		if (currentDag == null) {
+			throw new Exception("We are trying to parse a Vertex without a dag"
+					+ dagJson.toString());
 		}
-		
-		if (!((dagJson.getString(entitytype).equals(TEZ_TASK_ID)) || (dagJson.getString(entitytype).equals(TEZ_TASK_ATTEMPT_ID))))
-		{
-			 throw new Exception("Check the dag provided to  HandleTask : " + dagJson.getString(entitytype) + " "+ dagJson.toString());
+
+		if (!((dagJson.getString(ENTITY_TYPE).equals(TEZ_TASK_ID)) || (dagJson
+				.getString(ENTITY_TYPE).equals(TEZ_TASK_ATTEMPT_ID)))) {
+			throw new Exception("Check the dag provided to  HandleTask : "
+					+ dagJson.getString(ENTITY_TYPE) + " " + dagJson.toString());
 		}
-		
-		// The JSON has a flat structured, so this work is needed :( 
+
+		// The JSON has a flat structured, so this work is needed :(
 		currentDag.HandleTaskEvents(dagJson);
 	}
-	
-	public void PrintSummary() throws IOException
-	{
-		
-		
-		for (Dag td : dagList)
-		{
+
+	public void PrintSummary() throws IOException {
+
+		for (Dag td : dagList) {
 			List<String> miscCountersHeader = td.GetaggregatedInfoKeys();
-			
-			if (miscCountersHeader.size() == 0)
-			{
-				miscCountersHeader = Arrays.asList("OUTPUT_ADDITIONAL_SPILLS_BYTES_WRITTEN","INPUT_NUM_FAILED_SHUFFLE_INPUTS","OUTPUT_OUTPUT_BYTES","INPUT_REDUCE_INPUT_RECORDS","OUTPUT_OUTPUT_BYTES_WITH_OVERHEAD","INPUT_WRONG_LENGTH","INPUT_IO_ERROR","INPUT_SHUFFLE_BYTES","MISC_PASSED","INPUT_NUM_SHUFFLED_INPUTS","INPUT_SHUFFLE_BYTES_TO_DISK","INPUT_MERGED_MAP_OUTPUTS","INPUT_NUM_MEM_TO_DISK_MERGES","OUTPUT_ADDITIONAL_SPILL_COUNT","OUTPUT_ADDITIONAL_SPILLS_BYTES_READ","MISC_FILTERED","OUTPUT_OUTPUT_RECORDS","INPUT_SPILLED_RECORDS","INPUT_WRONG_MAP","OUTPUT_SPILLED_RECORDS","INPUT_NUM_DISK_TO_DISK_MERGES","INPUT_ADDITIONAL_SPILLS_BYTES_WRITTEN","MISC_DESERIALIZE_ERRORS","INPUT_INPUT_RECORDS_PROCESSED","INPUT_SHUFFLE_BYTES_DECOMPRESSED","INPUT_WRONG_REDUCE","INPUT_CONNECTION","OUTPUT_OUTPUT_BYTES_PHYSICAL","INPUT_NUM_SKIPPED_INPUTS","INPUT_REDUCE_INPUT_GROUPS","INPUT_SHUFFLE_BYTES_TO_MEM","INPUT_COMBINE_INPUT_RECORDS","INPUT_ADDITIONAL_SPILLS_BYTES_READ","INPUT_BAD_ID");
+
+			if (miscCountersHeader.size() == 0) {
+				miscCountersHeader = Arrays.asList(
+						"OUTPUT_ADDITIONAL_SPILLS_BYTES_WRITTEN",
+						"INPUT_NUM_FAILED_SHUFFLE_INPUTS",
+						"OUTPUT_OUTPUT_BYTES", "INPUT_REDUCE_INPUT_RECORDS",
+						"OUTPUT_OUTPUT_BYTES_WITH_OVERHEAD",
+						"INPUT_WRONG_LENGTH", "INPUT_IO_ERROR",
+						"INPUT_SHUFFLE_BYTES", "MISC_PASSED",
+						"INPUT_NUM_SHUFFLED_INPUTS",
+						"INPUT_SHUFFLE_BYTES_TO_DISK",
+						"INPUT_MERGED_MAP_OUTPUTS",
+						"INPUT_NUM_MEM_TO_DISK_MERGES",
+						"OUTPUT_ADDITIONAL_SPILL_COUNT",
+						"OUTPUT_ADDITIONAL_SPILLS_BYTES_READ", "MISC_FILTERED",
+						"OUTPUT_OUTPUT_RECORDS", "INPUT_SPILLED_RECORDS",
+						"INPUT_WRONG_MAP", "OUTPUT_SPILLED_RECORDS",
+						"INPUT_NUM_DISK_TO_DISK_MERGES",
+						"INPUT_ADDITIONAL_SPILLS_BYTES_WRITTEN",
+						"MISC_DESERIALIZE_ERRORS",
+						"INPUT_INPUT_RECORDS_PROCESSED",
+						"INPUT_SHUFFLE_BYTES_DECOMPRESSED",
+						"INPUT_WRONG_REDUCE", "INPUT_CONNECTION",
+						"OUTPUT_OUTPUT_BYTES_PHYSICAL",
+						"INPUT_NUM_SKIPPED_INPUTS",
+						"INPUT_REDUCE_INPUT_GROUPS",
+						"INPUT_SHUFFLE_BYTES_TO_MEM",
+						"INPUT_COMBINE_INPUT_RECORDS",
+						"INPUT_ADDITIONAL_SPILLS_BYTES_READ", "INPUT_BAD_ID");
 			}
 
 			// DAG
-			
-			if (outPutFolder == null || writeToConsole)
-			{
-				// Print the DAG header 
+
+			if (outPutFolder == null || writeToConsole) {
+				// Print the DAG header
 				System.out.println(dagList.get(0).getDagSummaryHeader());
-	
+
 				// Print the DAG values
-				System.out.println(td.getDagSummaryValues());	
-				
+				System.out.println(td.getDagSummaryValues());
+
 				// Vertex
 				td.PrintVertexSummary(miscCountersHeader);
-				System.out.println("\n" + Task.getTaskSummaryHeader(miscCountersHeader));
-	
-				// Task 
+				System.out.println("\n"
+						+ Task.getTaskSummaryHeader(miscCountersHeader));
+
+				// Task
 				td.PrintTaskSummary(miscCountersHeader);
 				System.out.println("\n");
 			}
-			
-			if (outPutFolder != null)
-			{
+
+			if (outPutFolder != null) {
 				File outFolder = new File(outPutFolder);
-				
+
 				// Create the folder if it doesn't exist
-				if (!outFolder.exists())
-				{
+				if (!outFolder.exists()) {
 					outFolder.mkdir();
 				}
-				
+
 				String summaryFileName = outPutFolder + "//";
-				if (outPutPrefix.length() > 0)
-				{
-					summaryFileName += outPutPrefix + "-" + td.getDagApplicationId()+"-"+td.getEntity()+".csv";
+				if (outPutPrefix.length() > 0) {
+					summaryFileName += outPutPrefix + "-"
+							+ td.getDagApplicationId() + "-" + td.getEntity()
+							+ ".csv";
+				} else {
+					summaryFileName += td.getDagApplicationId() + "-"
+							+ td.getEntity() + ".csv";
 				}
-				else
-				{
-					summaryFileName += td.getDagApplicationId()+"-"+td.getEntity()+".csv";
-				}
-				
+
 				FileWriter fileWriter = new FileWriter(summaryFileName);
-	
-				fileWriter.write(dagList.get(0).getDagSummaryHeader()+"\n");
-				fileWriter.write(td.getDagSummaryValues()+"\n");
+
+				fileWriter.write(dagList.get(0).getDagSummaryHeader() + "\n");
+				fileWriter.write(td.getDagSummaryValues() + "\n");
 				fileWriter.write("\n");
-				
-				for (String vertexSummaryLine : td.getVertexSummary(miscCountersHeader))
-				{
-					fileWriter.write(vertexSummaryLine+"\n");
+
+				for (String vertexSummaryLine : td
+						.getVertexSummary(miscCountersHeader)) {
+					fileWriter.write(vertexSummaryLine + "\n");
 				}
-				
-				
-				for (String taskSummaryLine : td.getTaskSummary(miscCountersHeader))
-				{
-					fileWriter.write(taskSummaryLine+"\n");
+
+				for (String taskSummaryLine : td
+						.getTaskSummary(miscCountersHeader)) {
+					fileWriter.write(taskSummaryLine + "\n");
 				}
-				
+
 				fileWriter.flush();
 				fileWriter.close();
 			}
-		}		
+		}
 	}
-	
+
 	@SuppressWarnings("finally")
-	public void parseLogFiles() throws JSONException, Exception
-	{
+	public void parseLogFiles() throws JSONException, Exception {
 		int currentFileId = 0;
 		int totalFiles = inputFileList.size();
-		for (File logFile : inputFileList)
-		{
-			try
-			{
-				System.out.println("Parsing file : " + logFile.getAbsolutePath() + " " + currentFileId + " out of " + totalFiles);
+		for (File logFile : inputFileList) {
+			try {
+				System.out.println("Parsing file : "
+						+ logFile.getAbsolutePath() + " " + currentFileId
+						+ " out of " + totalFiles);
 				readApplicationLogFile(logFile);
-			}
-			catch (Exception e)
-			{
-				System.err.print("Error parsing" + logFile.getAbsolutePath() + "\n" + e.getClass() + "\n" + e.getMessage()   + "\n"  );
+
+				// Print out the summary file
+				PrintSummary();
+
+				dagList.clear();
+			} catch (Exception e) {
+				System.err.print("Error parsing" + logFile.getAbsolutePath()
+						+ "\n" + e.getClass() + "\n" + e.getMessage() + "\n");
 				e.printStackTrace();
-			}
-			finally
-			{
+			} finally {
 				currentFileId++;
 				continue;
 			}
-			
+
 		}
 	}
-	
-	private void readApplicationLogFile(File appLogFile)
-			throws JSONException, Exception {
+
+	private void readApplicationLogFile(File appLogFile) throws JSONException,
+	Exception {
 		try {
 
 			BufferedReader br = new BufferedReader(new FileReader(
@@ -379,50 +372,49 @@ public class ApplicationLogsParser {
 			String jsonLogLine = null;
 
 			while ((jsonLogLine = br.readLine()) != null) {
-				jsonLogLine = jsonLogLine.replaceAll("\\p{Cc}", "").replaceAll("[\u0000-\u001f]","");
+				jsonLogLine = jsonLogLine.replaceAll("\\p{Cc}", "").replaceAll(
+						"[\u0000-\u001f]", "");
 				JSONObject obj = null;
-				
+
 				// Handle truncate json lines
-				
-				try
-				{
+
+				try {
 					obj = new JSONObject(jsonLogLine);
-				}
-				catch (JSONException e)
-				{
-					System.err.println("Error while parsing " + appLogFile.getAbsolutePath());
+				} catch (JSONException e) {
+					System.err.println("Error while parsing "
+							+ appLogFile.getAbsolutePath());
 					System.err.println(jsonLogLine);
 					e.printStackTrace();
 					currentDag = null;
 					continue;
 				}
-				
 
-				if (obj.has(entitytype)) {
+				if (obj.has(ENTITY_TYPE)) {
 
-					String entityName = obj.getString(entitytype);
-					
+					String entityName = obj.getString(ENTITY_TYPE);
+
 					// Parse the DAG info
 					if (entityName.equals(TEZ_DAG_ID)) {
-						
+
 						HandleDag(obj);
 					}
-					
+
 					// Parse the DAG info
 					if (entityName.equals(TEZ_VERTEX_ID)) {
-						
+
 						HandleVertex(obj);
 					}
-					
-					if (entityName.equals(TEZ_TASK_ID) || entityName.equals(TEZ_TASK_ATTEMPT_ID) ) {
+
+					if (entityName.equals(TEZ_TASK_ID)
+							|| entityName.equals(TEZ_TASK_ATTEMPT_ID)) {
 						HandleTask(obj);
 					}
 				}
 			}
-			
+
 			br.close();
 		} catch (FileNotFoundException ex) {
-			System.out.println(ex.getMessage());	
+			System.out.println(ex.getMessage());
 		}
 	}
 

@@ -6,24 +6,16 @@ import org.json.JSONObject;
 
 public class Task {
 
-	private static final String counterGroupName = "counterGroupName";
-
-	private static final String counterName = "counterName";
-
-	private static final String counters = "counters";
-
-	private static final String counterValue = "counterValue";
-
-	private static final String dagCounters = "org.apache.tez.common.counters.DAGCounter";
-
-	private static final String fileSystemCounter = "org.apache.tez.common.counters.FileSystemCounter";
-
-	private static final String taskCounter = "org.apache.tez.common.counters.TaskCounter";
+	private static final String COUNTER_GROUP_NAME = "counterGroupName";
+	private static final String COUNTER_NAME = "counterName";
+	private static final String COUNTERS = "counters";
+	private static final String COUNTER_VALUE = "counterValue";
+	private static final String DAG_COUNTERS = "org.apache.tez.common.counters.DAGCounter";
+	private static final String FILE_SYSTEM_COUNTER = "org.apache.tez.common.counters.FileSystemCounter";
+	private static final String TASK_COUNTER = "org.apache.tez.common.counters.TaskCounter";
 
 	HashMap<String, Long> aggregatedInfo;
-
 	HashMap<String, String> dagCountersHashMap;
-
 	HashMap<String, String> fileSystemCountersHashMap;
 
 	String taskContainerId;
@@ -40,6 +32,7 @@ public class Task {
 	String taskStatus;
 	int taskTimeTaken;
 	HashMap<String, HashMap<String, String>> vertexCountersHashMap;
+
 	public Task(Vertex parentVertex, JSONObject jsonObject) {
 
 		taskParsingComplete = false;
@@ -57,15 +50,17 @@ public class Task {
 			taskCounters.put(key, otherInfoJSON.get(key).toString());
 		}
 	}
+
 	@Override
 	public boolean equals(Object obj) {
 		// TODO Auto-generated method stub
 		return super.equals(obj);
 	}
+
 	public String getTaskId() {
 		return taskId;
 	}
-	
+
 	public static String getTaskSummaryHeader(List<String> aggregatedInfoKeys) {
 		String header = "ParentDagId,VertexName,TaskNodeName,TaskContainerId,TaskId,TaskTimeTaken,ScheduledTime,StartTime,TaskEndTime,Status,"
 				+ " DataLocalTask,RackLocalTasks,FileBytesRead,FileBytesWritten,FileReadOps,FileLargeReadOps,FileWriteOps,HDFSBytesRead,HDFSBytesWritten,HDFSReadOps,HDFSLargeReadOps,HDFSWriteOps,GcTimeMs,CpuMs,PhysicalMemoryBytes,VirtualMemoryBytes,CommittedHeapBytes";
@@ -111,12 +106,14 @@ public class Task {
 
 		return values;
 	}
+
 	public void HandleAttemptEvent(JSONObject jo) {
 		this.taskNodeName = jo.getJSONArray("relatedEntities").getJSONObject(0)
 				.get("entity").toString();
 		this.taskContainerId = jo.getJSONArray("relatedEntities")
 				.getJSONObject(1).get("entity").toString();
 	}
+
 	public void HandleFinishedEvent(JSONObject jsonObject) {
 		JSONObject otherInfoJson = jsonObject.getJSONObject("otherinfo");
 
@@ -129,33 +126,33 @@ public class Task {
 		if (taskStatus.equalsIgnoreCase("KILLED")) {
 			return;
 		}
-		
+
 		JSONArray ja = new JSONArray();
-		if(otherInfoJson.getJSONObject("counters").has("counterGroups"))
-		{
-			ja =otherInfoJson.getJSONObject("counters").getJSONArray("counterGroups");
+		if (otherInfoJson.getJSONObject("counters").has("counterGroups")) {
+			ja = otherInfoJson.getJSONObject("counters").getJSONArray(
+					"counterGroups");
 		}
-		
+
 		for (int i = 0; i < ja.length(); i++) {
 			JSONObject currentCountersSet = ja.getJSONObject(i);
 			String currentGroupName = currentCountersSet
-					.getString(counterGroupName);
+					.getString(COUNTER_GROUP_NAME);
 
 			String objectType = currentCountersSet.get("counters").getClass()
 					.getName();
 			JSONArray countersArray = null;
 			JSONObject countersObject = null;
 			if (objectType.equals("org.json.JSONObject")) {
-				countersObject = currentCountersSet.getJSONObject(counters);
+				countersObject = currentCountersSet.getJSONObject(COUNTERS);
 			} else {
-				countersArray = currentCountersSet.getJSONArray(counters);
+				countersArray = currentCountersSet.getJSONArray(COUNTERS);
 			}
 
 			switch (currentGroupName) {
 
 			// Parse dag counters such as TOTAL_LAUNCHED_TASKS, DATA_LOCAL_TASKS
 			// and RACK_LOCAL_TASKS
-			case dagCounters: {
+			case DAG_COUNTERS: {
 				if (countersArray == null) {
 					parseKeyValuePairs(countersObject, dagCountersHashMap);
 				} else {
@@ -163,25 +160,25 @@ public class Task {
 				}
 
 			}
-				;
-				break;
+			;
+			break;
 
 			// Parse file systems counters such as FILE_BYTES_READ,
 			// FILE_BYTES_WRITTEN, FILE_READ_OPS,HDFS_BYTES_READ etc..
-			case fileSystemCounter: {
+			case FILE_SYSTEM_COUNTER: {
 				parseKeyValuePairs(countersArray, fileSystemCountersHashMap);
 			}
-				;
-				break;
+			;
+			break;
 
 			// Parse file systems counters such as GC_TIME_MILLIS,
 			// CPU_MILLISECONDS, PHYSICAL_MEMORY_BYTES,VIRTUAL_MEMORY_BYTES
 			// etc..
-			case taskCounter: {
+			case TASK_COUNTER: {
 				parseKeyValuePairs(countersArray, taskCountersHashMap);
 			}
-				;
-				break;
+			;
+			break;
 
 			default: {
 				HashMap<String, String> taskCountersMap = new HashMap<String, String>();
@@ -192,7 +189,7 @@ public class Task {
 				}
 				vertexCountersHashMap.put(currentGroupName, taskCountersMap);
 			}
-				break;
+			break;
 			}
 		}
 
@@ -200,21 +197,26 @@ public class Task {
 
 		taskParsingComplete = true;
 	}
+
 	@Override
 	public int hashCode() {
 		// TODO Auto-generated method stub
 		return super.hashCode();
 	}
+
 	public void parseKeyValuePairs(JSONArray ja, HashMap<String, String> hashmap) {
 		for (int j = 0; j < ja.length(); j++) {
-			hashmap.put(ja.getJSONObject(j).getString(counterName), ja
-					.getJSONObject(j).get(counterValue).toString());
+			hashmap.put(ja.getJSONObject(j).getString(COUNTER_NAME), ja
+					.getJSONObject(j).get(COUNTER_VALUE).toString());
 		}
 	}
+
 	public void parseKeyValuePairs(JSONObject jo,
 			HashMap<String, String> hashmap) {
-		hashmap.put(jo.getString(counterName), jo.get(counterValue).toString());
+		hashmap.put(jo.getString(COUNTER_NAME), jo.get(COUNTER_VALUE)
+				.toString());
 	}
+
 	public void setTaskId(String taskId) {
 		this.taskId = taskId;
 	}
