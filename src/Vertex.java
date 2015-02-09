@@ -346,8 +346,8 @@ public class Vertex {
 		 */
 
 		for (String key : aggregatedInfoKeys) {
-			if (aggregatedInfo.containsKey(key)) {
-				values += "," + aggregatedInfo.get(key).toString();
+			if (taskCountersHashMap.containsKey(key)) {
+				values += "," + taskCountersHashMap.get(key).toString();
 			} else {
 				values += ",";
 			}
